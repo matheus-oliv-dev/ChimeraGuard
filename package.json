@@ -1,6 +1,6 @@
 {
   "name": "chimeraguard",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "description": "ChimeraGuard - Multi-Vector DevSecOps Platform & Defense Arsenal (formerly ObsidianSec)",
   "type": "module",
   "bin": {

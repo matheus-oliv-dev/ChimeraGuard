@@ -4,12 +4,12 @@
 
 [![npm version](https://img.shields.io/npm/v/chimeraguard.svg?color=10b981&style=for-the-badge)](https://www.npmjs.com/package/chimeraguard)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Tests: 181 Passed](https://img.shields.io/badge/Tests-181%20Passed%20(100%25)-10b981.svg?style=for-the-badge)](https://github.com/matheus-oliv-dev/ChimeraGuard)
-[![Security Tools: 16 Engines](https://img.shields.io/badge/Arsenal-16%20Engines%20in%201%20CLI-blueviolet.svg?style=for-the-badge)](https://github.com/matheus-oliv-dev/ChimeraGuard)
+[![Tests: 186 Passed](https://img.shields.io/badge/Tests-186%20Passed%20(100%25)-10b981.svg?style=for-the-badge)](https://github.com/matheus-oliv-dev/ChimeraGuard)
+[![Security Tools: 18 Engines](https://img.shields.io/badge/Arsenal-18%20Engines%20in%201%20CLI-blueviolet.svg?style=for-the-badge)](https://github.com/matheus-oliv-dev/ChimeraGuard)
 [![Quality Gate](https://img.shields.io/badge/CI%2FCD-Quality%20Gate%20Ready-black.svg?style=for-the-badge)](https://github.com/matheus-oliv-dev/ChimeraGuard)
 
 **The All-In-One DevSecOps, Edge Defense, SAST & Reconnaissance CLI.**  
-*Consolidating 16 specialized security engines into a single, zero-dependency `npm install`.*
+*Consolidating 18 specialized security engines into a single, zero-dependency `npm install`.*
 
 > ⚡ **Evolution Notice:** Formerly known as **ObsidianSec**. All existing commands (`npx obsidiansec ...`) continue to work seamlessly for backward compatibility!
 
@@ -28,7 +28,13 @@ npx chimeraguard audit https://your-website.com
 # 🎯 2. Cloudflare & Origin Bypass Finder (Detects Real IP leaks via SPF, MX & Subdomains)
 npx chimeraguard origin https://your-website.com
 
-# 🔒 3. SSL/TLS Certificate & Protocol Security (SSL Labs Engine)
+# 🐘 3. PHP Critical Vulnerability & EOL Auditor (CVE-2024-4577, CVE-2024-8926, phpinfo, .user.ini)
+npx chimeraguard php https://your-website.com
+
+# 🚨 4. Server CVE & Sensitive Exposure Scanner (Apache, Nginx, OpenSSL CVEs, .git, .env, Actuator)
+npx chimeraguard vulns https://your-website.com
+
+# 🔒 5. SSL/TLS Certificate & Protocol Security (SSL Labs Engine)
 npx chimeraguard ssl https://your-website.com
 
 # 🧬 4. Technology Stack Fingerprinting (Wappalyzer Engine: React, Next.js, Nginx, CDNs)
@@ -73,6 +79,8 @@ npx chimeraguard init-config
 |---|---|---|---|
 | `audit <url>` | Edge Security | Mozilla Observatory / Burp | CSP, HSTS, X-Frame-Options, Cookie flags, CORS, MITRE ATT&CK Graph |
 | `origin <url>` | Perimeter Defense | Shodan / DoH Recon | Uncovers real origin IP leaks bypassing Cloudflare/WAF; generates UFW patches |
+| `php <url>` | Runtime CVE Audit | CVE-2024-4577 / PHP Foundation | Detects PHP-CGI Argument Injection (CVSS 9.8), EOL PHP branches, exposed `phpinfo` |
+| `vulns <url>` | CVE & Exposure | NVD / OWASP Config | Scans Apache/Nginx/OpenSSL CVEs and exposed `.git`, `.env`, Actuator, `security.txt` |
 | `ssl <url>` | Cryptography | SSL Labs | TLS 1.3/1.2 validation, SAN inspection, weak cipher/hash detection, expiry days |
 | `tech <url>` | Reconnaissance | Wappalyzer / BuiltWith | Identifies React, Next.js, Vue, Angular, WordPress, Django, Nginx, Cloudflare |
 | `methods <url>` | Protocol Audit | OWASP Testing Guide | Enumerates verbs; detects TRACE (XST vector), unauthenticated PUT/DELETE |

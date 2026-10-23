@@ -1,14 +1,9 @@
 {
   "$schema": "https://chimera-guard.vercel.app/schema.json",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "scope": {
     "strictMode": false,
-    "allowlist": [
-      "localhost",
-      "127.0.0.1",
-      "staging.yourdomain.com",
-      "*.yourdomain.com"
-    ],
+    "allowlist": [],
     "blocklist": [
       "*.gov.br",
       "*.mil.br",

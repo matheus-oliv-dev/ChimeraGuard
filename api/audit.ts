@@ -356,6 +356,24 @@ Set Dynamic Header:
   ]
 }`,
       },
+      {
+        serverType: "PHP (php.ini // CVE-2024-4577)",
+        snippet: `; =========================================================
+; CHIMERAGUARD DEFENSE PATCH // PHP HARDENING & CVE-2024-4577
+; =========================================================
+expose_php = Off
+display_errors = Off
+display_startup_errors = Off
+log_errors = On
+allow_url_include = Off
+allow_url_fopen = Off
+cgi.force_redirect = 1
+session.cookie_httponly = 1
+session.cookie_secure = 1
+session.cookie_samesite = "Lax"
+session.use_strict_mode = 1
+disable_functions = exec,passthru,shell_exec,system,proc_open,popen,show_source,phpinfo`,
+      },
     ];
 
     const rawSetCookies: string[] = [];
@@ -367,6 +385,131 @@ Set Dynamic Header:
     }
 
     const burpInspection = runBurpHeaderAudit(headers, rawSetCookies);
+
+    // ====================================================================
+    // PHP & SERVER CVE / EXPOSURE INSPECTOR (CVE-2024-4577, EOL, BANNERS)
+    // ====================================================================
+    const combinedBanner = `${serverHeader} ${xPoweredBy}`;
+    const cveFindings: Array<{ cveId: string; component: string; version: string; severity: string; title: string; remediation: string }> = [];
+    const exposureFindings: Array<{ title: string; severity: string; detail: string }> = [];
+
+    const compareVer = (v1: string, v2: string) => {
+      const a = v1.replace(/[^0-9.]/g, "").split(".").map((n) => parseInt(n, 10) || 0);
+      const b = v2.replace(/[^0-9.]/g, "").split(".").map((n) => parseInt(n, 10) || 0);
+      for (let i = 0; i < Math.max(a.length, b.length); i++) {
+        if ((a[i] ?? 0) < (b[i] ?? 0)) return -1;
+        if ((a[i] ?? 0) > (b[i] ?? 0)) return 1;
+      }
+      return 0;
+    };
+
+    let phpDetected = false;
+    let phpVersion: string | null = null;
+    let phpIsEol = false;
+
+    const phpMatch = combinedBanner.match(/PHP\/(\d+\.\d+\.\d+)/i);
+    if (phpMatch) {
+      phpDetected = true;
+      phpVersion = phpMatch[1];
+      const parts = phpVersion.split(".").map((n) => parseInt(n, 10) || 0);
+      const maj = parts[0] ?? 0;
+      const min = parts[1] ?? 0;
+      const branch = `${maj}.${min}`;
+      phpIsEol = maj < 8 || (maj === 8 && min <= 1);
+
+      exposureFindings.push({
+        title: `PHP Version Disclosed (PHP/${phpVersion})`,
+        severity: "MEDIUM",
+        detail: "Set 'expose_php = Off' in php.ini to hide X-Powered-By version banners.",
+      });
+
+      if (phpIsEol) {
+        exposureFindings.push({
+          title: `End-of-Life PHP Runtime (${phpVersion})`,
+          severity: "HIGH",
+          detail: "This PHP branch no longer receives official security updates. Upgrade to PHP 8.3+ or 8.4+.",
+        });
+      }
+
+      if (
+        maj < 8 ||
+        (maj === 8 && min === 0) ||
+        (branch === "8.1" && compareVer(phpVersion, "8.1.29") < 0) ||
+        (branch === "8.2" && compareVer(phpVersion, "8.2.20") < 0) ||
+        (branch === "8.3" && compareVer(phpVersion, "8.3.8") < 0)
+      ) {
+        cveFindings.push({
+          cveId: "CVE-2024-4577",
+          component: "PHP-CGI",
+          version: phpVersion,
+          severity: "CRITICAL (CVSS 9.8)",
+          title: "PHP-CGI Argument Injection (Best-Fit Encoding Bypass)",
+          remediation: "Upgrade to PHP >= 8.3.14 / >= 8.2.26 and migrate from PHP-CGI to PHP-FPM.",
+        });
+      }
+
+      if (
+        maj < 8 ||
+        (maj === 8 && min === 0) ||
+        (branch === "8.1" && compareVer(phpVersion, "8.1.30") < 0) ||
+        (branch === "8.2" && compareVer(phpVersion, "8.2.24") < 0) ||
+        (branch === "8.3" && compareVer(phpVersion, "8.3.12") < 0)
+      ) {
+        cveFindings.push({
+          cveId: "CVE-2024-8926 / CVE-2024-8927",
+          component: "PHP-CGI / FastCGI",
+          version: phpVersion,
+          severity: "CRITICAL (CVSS 9.8)",
+          title: "PHP-CGI Protection Bypass & cgi.force_redirect Collision",
+          remediation: "Upgrade PHP to >= 8.3.12 / >= 8.2.24 and disable php-cgi in public directories.",
+        });
+      }
+    } else if (rawSetCookies.some((c) => /PHPSESSID/i.test(c)) || /\.php(?:\?|$)/i.test(targetUrl)) {
+      phpDetected = true;
+    }
+
+    const apacheMatch = combinedBanner.match(/Apache\/(\d+\.\d+\.\d+)/i);
+    if (apacheMatch && compareVer(apacheMatch[1], "2.4.62") < 0) {
+      cveFindings.push({
+        cveId: "CVE-2024-38476 / CVE-2024-40725",
+        component: "Apache HTTP Server",
+        version: apacheMatch[1],
+        severity: "CRITICAL (CVSS 9.1)",
+        title: "Apache mod_rewrite SSRF & Source Code Disclosure",
+        remediation: "Upgrade Apache to >= 2.4.62 and set 'ServerTokens Prod' in httpd.conf.",
+      });
+    }
+
+    const nginxMatch = combinedBanner.match(/nginx\/(\d+\.\d+\.\d+)/i);
+    if (nginxMatch && compareVer(nginxMatch[1], "1.26.2") < 0) {
+      cveFindings.push({
+        cveId: "CVE-2024-7347 / CVE-2024-32760",
+        component: "Nginx Web Server",
+        version: nginxMatch[1],
+        severity: "MEDIUM (CVSS 6.5)",
+        title: "Nginx HTTP/3 QUIC & MP4 Module Memory Safety",
+        remediation: "Upgrade Nginx to >= 1.26.2 and set 'server_tokens off;' in nginx.conf.",
+      });
+    }
+
+    const debugToken = headers.get("x-debug-token") || headers.get("x-debug-token-link");
+    if (debugToken) {
+      exposureFindings.push({
+        title: "Symfony / Laravel Debug Profiler Exposed",
+        severity: "HIGH",
+        detail: "X-Debug-Token header detected in production response. Set APP_DEBUG=false.",
+      });
+    }
+
+    const vulnInspection = {
+      phpDetected,
+      phpVersion,
+      phpIsEol,
+      serverBanner: serverHeader || "Hidden (Hardened)",
+      poweredByBanner: xPoweredBy || "Hidden (Hardened)",
+      cves: cveFindings,
+      exposures: exposureFindings,
+    };
 
     const attackChain = buildAttackChainGraph(targetUrl, {
       hasCsp: !!cspVal,
@@ -398,6 +541,7 @@ Set Dynamic Header:
         coop: { present: !!coopVal, value: coopVal || undefined },
       },
       burpInspection,
+      vulnInspection,
       attackChain,
       remediationSnippets,
     };
@@ -694,6 +838,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       },
       securityHeaders: auditReport.securityHeaders,
       burpInspection: auditReport.burpInspection,
+      vulnInspection: auditReport.vulnInspection,
       attackChain: auditReport.attackChain,
       aiDiagnosis,
       aiAnalysis: {

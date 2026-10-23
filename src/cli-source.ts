@@ -22,9 +22,10 @@ import {
   checkCachedUpdateSync,
   triggerBackgroundUpdateCheck,
   analyzeOriginLeak,
+  analyzePhpAndWebVulnerabilities,
 } from "./lib/security/index.ts";
 
-const CLI_VERSION = "1.5.0";
+const CLI_VERSION = "1.6.0";
 const args = process.argv.slice(2);
 const command = args[0] || "help";
 
@@ -729,6 +730,92 @@ async function runOrigin() {
   process.exit(report.overallStatus === "CRITICAL_BYPASS" ? 1 : 0);
 }
 
+async function runPhpAndVulns() {
+  const targetUrl = args[1];
+  if (!targetUrl) {
+    console.error(`${ANSI.red}❌ Erro: URL alvo não especificada.${ANSI.reset}`);
+    console.log(`Uso: ${ANSI.bold}npx chimeraguard php <url> [--json]${ANSI.reset} ou ${ANSI.bold}npx chimeraguard vulns <url>${ANSI.reset}`);
+    process.exit(1);
+  }
+
+  const isJson = args.includes("--json");
+  const config = loadObsidianConfig();
+  const scope = validateTargetScope(targetUrl, config);
+  if (!scope.allowed) {
+    if (isJson) {
+      console.log(JSON.stringify({ error: scope.reason, errorCode: scope.errorCode }, null, 2));
+    } else {
+      printBanner();
+      console.error(`${ANSI.red}🚫 [SCOPE GUARD]: Auditoria bloqueada!${ANSI.reset}`);
+      console.error(`${ANSI.yellow}Motivo: ${scope.reason}${ANSI.reset}`);
+    }
+    process.exit(1);
+  }
+
+  if (!isJson) {
+    printBanner();
+    console.log(`🐘 Auditando vulnerabilidades críticas de PHP (CVE-2024-4577 / EOL), CVEs de Servidor e Exposições em ${ANSI.bold}${targetUrl}${ANSI.reset}...\n`);
+  }
+
+  const report = await analyzePhpAndWebVulnerabilities(targetUrl);
+
+  if (isJson) {
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(report.overallStatus === "CRITICAL" ? 1 : 0);
+  }
+
+  const statusColor =
+    report.overallStatus === "SECURE"
+      ? ANSI.green
+      : report.overallStatus === "WARNING"
+        ? ANSI.yellow
+        : ANSI.red;
+
+  console.log(`======================================================================`);
+  console.log(`${ANSI.bold}📊 AUDITORIA DE VULNERABILIDADES PHP, CVEs & EXPOSIÇÃO DE BORDA${ANSI.reset}`);
+  console.log(`======================================================================`);
+  console.log(`• Alvo Auditado:       ${report.targetUrl}`);
+  console.log(`• Runtime PHP:         ${report.phpDetected ? ANSI.yellow + "DETECTADO" + (report.phpVersion ? ` (v${report.phpVersion})` : " (Versão Oculta)") : ANSI.green + "Não Identificado / Oculto"}${ANSI.reset}`);
+  if (report.phpVersion) {
+    console.log(`• Ciclo de Vida PHP:   ${report.phpIsEol ? ANSI.red + "END-OF-LIFE (SEM SUPORTE DE SEGURANÇA)" : ANSI.green + "SUPORTADO"}${ANSI.reset}`);
+  }
+  console.log(`• Servidor Web:        ${report.serverBanner}`);
+  console.log(`• X-Powered-By:        ${report.poweredByBanner}`);
+  console.log(`• Sistema Operacional: ${report.osHint}`);
+  console.log(`• security.txt (9116): ${report.securityTxtPresent ? ANSI.green + "PRESENTE" : ANSI.yellow + "AUSENTE"}${ANSI.reset}`);
+  console.log(`• Nota de Blindagem:   ${statusColor}${ANSI.bold}GRADE ${report.securityGrade} (Risco: ${report.riskScore}/100 - ${report.overallStatus})${ANSI.reset}`);
+  console.log(`• Duração:             ${report.durationMs}ms`);
+  console.log(`======================================================================\n`);
+
+  if (report.cveFindings.length > 0) {
+    console.log(`${ANSI.red}${ANSI.bold}🚨 VULNERABILIDADES CVE IDENTIFICADAS (${report.cveFindings.length}):${ANSI.reset}`);
+    for (const cve of report.cveFindings) {
+      const sevColor = cve.severity === "CRITICAL" ? ANSI.red : ANSI.yellow;
+      console.log(`  • ${sevColor}${ANSI.bold}[${cve.severity} // CVSS ${cve.cvssScore}] ${cve.cveId}${ANSI.reset} (${cve.component} ${cve.detectedVersion})`);
+      console.log(`    Título:   ${cve.title}`);
+      console.log(`    Detalhe:  ${cve.description}`);
+      console.log(`    Correção: ${ANSI.cyan}Atualizar para ${cve.patchedVersion}${ANSI.reset} — ${cve.remediation}\n`);
+    }
+  } else {
+    console.log(`${ANSI.green}✅ Nenhuma versão vulnerável a CVEs críticas (como CVE-2024-4577) foi exposta nos banners.${ANSI.reset}\n`);
+  }
+
+  if (report.exposureFindings.length > 0) {
+    console.log(`${ANSI.yellow}${ANSI.bold}🔍 EXPOSIÇÕES & PONTOS DE HARDENING (${report.exposureFindings.length}):${ANSI.reset}`);
+    for (const exp of report.exposureFindings) {
+      const sevColor = exp.severity === "CRITICAL" || exp.severity === "HIGH" ? ANSI.red : exp.severity === "MEDIUM" ? ANSI.yellow : ANSI.cyan;
+      console.log(`  • ${sevColor}[${exp.severity}] ${exp.title}${ANSI.reset} (${exp.pathOrHeader})`);
+      console.log(`    Evidência:  ${exp.evidence}`);
+      console.log(`    Remediação: ${exp.remediation}\n`);
+    }
+  }
+
+  console.log(`🛡️  DIRETIVAS DE BLINDAGEM RECOMENDADAS (PHP.INI):`);
+  console.log(`${ANSI.cyan}${report.remediationConfig.phpIni}${ANSI.reset}\n`);
+  console.log(`======================================================================\n`);
+  process.exit(report.overallStatus === "CRITICAL" ? 1 : 0);
+}
+
 function runInitConfig() {
   printBanner();
   try {
@@ -751,6 +838,10 @@ function printHelp() {
       --json                      Retorna o relatório completo em formato JSON
 
   ${ANSI.bold}chimeraguard origin <url>${ANSI.reset}          Caça vazamentos de IP real e bypass de Cloudflare/WAF (SPF, MX, Subdomínios)
+
+  ${ANSI.bold}chimeraguard php <url>${ANSI.reset}             Audita CVEs críticas de PHP (CVE-2024-4577, 8926, EOL) e exposições (phpinfo, .env, .git)
+
+  ${ANSI.bold}chimeraguard vulns <url>${ANSI.reset}           Scanner de CVEs de Servidores (Apache, Nginx, OpenSSL, IIS) e Exposições de Borda
 
   ${ANSI.bold}chimeraguard ssl <url>${ANSI.reset}             Auditoria de certificados SSL/TLS, validade, expiração e nota de segurança
   
@@ -789,6 +880,14 @@ switch (command) {
   case "origin-bypass":
   case "bypass":
     runOrigin();
+    break;
+  case "php":
+  case "vulns":
+  case "cve":
+  case "cves":
+  case "exposure":
+  case "misconfig":
+    runPhpAndVulns();
     break;
   case "ssl":
   case "tls":
@@ -845,7 +944,7 @@ switch (command) {
   case "version":
   case "-v":
   case "--version":
-    console.log("ChimeraGuard CLI v1.5.0 (formerly ObsidianSec)");
+    console.log("ChimeraGuard CLI v1.6.0 (formerly ObsidianSec)");
     break;
   default:
     printHelp();

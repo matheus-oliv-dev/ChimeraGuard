@@ -3322,8 +3322,613 @@ async function analyzeOriginLeak(targetUrl, options) {
   };
 }
 
+// src/lib/security/php-and-vuln-analyzer.ts
+function compareSemver(v1, v2) {
+  const clean1 = v1.replace(/[^0-9.]/g, "").split(".").map((n) => parseInt(n, 10) || 0);
+  const clean2 = v2.replace(/[^0-9.]/g, "").split(".").map((n) => parseInt(n, 10) || 0);
+  const len = Math.max(clean1.length, clean2.length);
+  for (let i = 0; i < len; i++) {
+    const a = clean1[i] ?? 0;
+    const b = clean2[i] ?? 0;
+    if (a < b) return -1;
+    if (a > b) return 1;
+  }
+  return 0;
+}
+function evaluatePhpVersionVulnerabilities(version) {
+  const cves = [];
+  const parts = version.replace(/[^0-9.]/g, "").split(".").map((n) => parseInt(n, 10) || 0);
+  const major = parts[0] ?? 0;
+  const minor = parts[1] ?? 0;
+  const branch = `${major}.${minor}`;
+  const isEol = major < 8 || major === 8 && minor <= 1;
+  const checkRange = (minBranch, patchedVersion) => {
+    if (major < 8 || major === 8 && minor === 0) return true;
+    if (branch === minBranch) {
+      return compareSemver(version, patchedVersion) < 0;
+    }
+    return false;
+  };
+  if (major < 8 || major === 8 && minor === 0 || checkRange("8.1", "8.1.29") || checkRange("8.2", "8.2.20") || checkRange("8.3", "8.3.8")) {
+    cves.push({
+      cveId: "CVE-2024-4577",
+      component: "PHP (PHP-CGI)",
+      detectedVersion: version,
+      severity: "CRITICAL",
+      cvssScore: 9.8,
+      title: "PHP-CGI Argument Injection (Best-Fit Character Encoding Bypass)",
+      description: "Falha cr\xEDtica onde a convers\xE3o de codifica\xE7\xE3o Best-Fit do Windows transforma caracteres especiais (ex: soft-hyphen 0xAD) em h\xEDfens reais, permitindo inje\xE7\xE3o de argumentos no interpretador php-cgi.exe.",
+      patchedVersion: "8.1.29 / 8.2.20 / 8.3.8+",
+      remediation: "Atualizar o PHP imediatamente para >= 8.3.14 ou >= 8.2.26, migrar de PHP-CGI para PHP-FPM e bloquear sequ\xEAncias %AD na borda/WAF."
+    });
+  }
+  if (major < 8 || major === 8 && minor === 0 || checkRange("8.1", "8.1.30") || checkRange("8.2", "8.2.24") || checkRange("8.3", "8.3.12")) {
+    cves.push({
+      cveId: "CVE-2024-8926 / CVE-2024-8927",
+      component: "PHP (CGI / FastCGI)",
+      detectedVersion: version,
+      severity: "CRITICAL",
+      cvssScore: 9.8,
+      title: "PHP-CGI Protection Bypass & cgi.force_redirect Environment Collision",
+      description: "Bypass da mitiga\xE7\xE3o original da CVE-2024-4577 e colis\xE3o de vari\xE1veis de ambiente HTTP que permite contornar a diretiva cgi.force_redirect.",
+      patchedVersion: "8.1.30 / 8.2.24 / 8.3.12+",
+      remediation: "Atualizar o PHP para >= 8.3.12 ou >= 8.2.24 e desativar completamente o bin\xE1rio php-cgi em diret\xF3rios p\xFAblicos."
+    });
+    cves.push({
+      cveId: "CVE-2024-8925",
+      component: "PHP Core (Multipart Parser)",
+      detectedVersion: version,
+      severity: "HIGH",
+      cvssScore: 7.5,
+      title: "Erroneous Multipart Form-Data Boundary Parsing",
+      description: "Erro de parsing em limites de requisi\xE7\xF5es multipart/form-data que pode causar corrup\xE7\xE3o ou exposi\xE7\xE3o indevida de dados de buffer em uploads.",
+      patchedVersion: "8.1.30 / 8.2.24 / 8.3.12+",
+      remediation: "Atualizar o runtime PHP para >= 8.3.12 ou >= 8.2.24."
+    });
+  }
+  if (major < 8 || major === 8 && minor === 0 || checkRange("8.1", "8.1.28") || checkRange("8.2", "8.2.18") || checkRange("8.3", "8.3.5")) {
+    cves.push({
+      cveId: "CVE-2024-2756",
+      component: "PHP Session / Cookie Parser",
+      detectedVersion: version,
+      severity: "HIGH",
+      cvssScore: 7.5,
+      title: "__Host- and __Secure- Cookie Prefix Integrity Bypass",
+      description: "A convers\xE3o autom\xE1tica de caracteres '[' e '.' para '_' em vari\xE1veis superglobais $_COOKIE permite sobrescrever cookies protegidos pelos prefixos __Host- e __Secure-.",
+      patchedVersion: "8.1.28 / 8.2.18 / 8.3.5+",
+      remediation: "Atualizar o PHP e validar nomes de cookies brutos no cabe\xE7alho HTTP Cookie."
+    });
+  }
+  if (major < 8 || major === 8 && minor === 0 || checkRange("8.1", "8.1.29") || checkRange("8.2", "8.2.20") || checkRange("8.3", "8.3.8")) {
+    cves.push({
+      cveId: "CVE-2024-5458",
+      component: "PHP Standard Library (filter_var)",
+      detectedVersion: version,
+      severity: "HIGH",
+      cvssScore: 7.3,
+      title: "filter_var(FILTER_VALIDATE_URL) Validation Bypass (SSRF Vector)",
+      description: "Falha na valida\xE7\xE3o de URLs com sintaxe IPv6/userinfo na fun\xE7\xE3o nativa filter_var(), permitindo bypass de filtros anti-SSRF e Open Redirect.",
+      patchedVersion: "8.1.29 / 8.2.20 / 8.3.8+",
+      remediation: "Atualizar o PHP e utilizar parser estrito de hostnames com allowlist."
+    });
+  }
+  if (major < 8 || major === 8 && minor === 0 || checkRange("8.1", "8.1.31") || checkRange("8.2", "8.2.26") || checkRange("8.3", "8.3.14")) {
+    cves.push({
+      cveId: "CVE-2024-11234 / CVE-2024-11236",
+      component: "PHP Streams / LDAP / PDO",
+      detectedVersion: version,
+      severity: "HIGH",
+      cvssScore: 8.1,
+      title: "HTTP Stream Proxy Header Injection & Integer Overflow in ldap_escape",
+      description: "Possibilidade de CRLF injection em conex\xF5es de stream via proxy e estouro de inteiro em fun\xE7\xF5es de escape LDAP/PDO.",
+      patchedVersion: "8.1.31 / 8.2.26 / 8.3.14+",
+      remediation: "Atualizar o PHP para >= 8.3.14, >= 8.2.26 ou migrar para a branch 8.4.x."
+    });
+  }
+  return { isEol, cves };
+}
+function evaluateServerBannerVulnerabilities(serverHeader, poweredByHeader) {
+  const findings = [];
+  const combined = `${serverHeader} ${poweredByHeader}`;
+  const apacheMatch = combined.match(/Apache\/(\d+\.\d+\.\d+)/i);
+  if (apacheMatch) {
+    const ver = apacheMatch[1];
+    if (compareSemver(ver, "2.4.62") < 0) {
+      findings.push({
+        cveId: "CVE-2024-38476 / CVE-2024-40725 / CVE-2024-40898",
+        component: "Apache HTTP Server",
+        detectedVersion: ver,
+        severity: "CRITICAL",
+        cvssScore: 9.1,
+        title: "Apache mod_rewrite SSRF & Source Code Disclosure Vulnerabilities",
+        description: "Vers\xF5es do Apache anteriores \xE0 2.4.62 possuem falhas cr\xEDticas de revela\xE7\xE3o de c\xF3digo-fonte de scripts (CVE-2024-40725) e manipula\xE7\xE3o insegura de respostas de backend/mod_rewrite.",
+        patchedVersion: "2.4.62+",
+        remediation: "Atualizar o Apache HTTP Server para >= 2.4.62 e configurar 'ServerTokens Prod' e 'ServerSignature Off' no httpd.conf."
+      });
+    }
+  }
+  const nginxMatch = combined.match(/nginx\/(\d+\.\d+\.\d+)/i);
+  if (nginxMatch) {
+    const ver = nginxMatch[1];
+    if (compareSemver(ver, "1.26.2") < 0) {
+      findings.push({
+        cveId: "CVE-2024-7347 / CVE-2024-32760",
+        component: "Nginx Web Server",
+        detectedVersion: ver,
+        severity: "MEDIUM",
+        cvssScore: 6.5,
+        title: "Nginx HTTP/3 QUIC & MP4 Module Memory Safety Vulnerabilities",
+        description: "Vers\xF5es anteriores ao Nginx 1.26.2 / 1.27.1 possuem vulnerabilidades de leitura/escrita de mem\xF3ria no m\xF3dulo ngx_http_mp4_module e no processamento HTTP/3 QUIC.",
+        patchedVersion: "1.26.2+ / 1.27.1+",
+        remediation: "Atualizar o Nginx para >= 1.26.2 e adicionar 'server_tokens off;' no bloco http do nginx.conf."
+      });
+    }
+  }
+  const opensslMatch = combined.match(/OpenSSL\/(\d+\.\d+\.\d+[a-z]?)/i);
+  if (opensslMatch) {
+    const ver = opensslMatch[1];
+    if (ver.startsWith("1.1.1") || ver.startsWith("1.0.")) {
+      findings.push({
+        cveId: "OPENSSL-EOL-1.1.1",
+        component: "OpenSSL",
+        detectedVersion: ver,
+        severity: "HIGH",
+        cvssScore: 7.5,
+        title: "OpenSSL 1.1.1 End-of-Life (Sem Suporte de Seguran\xE7a)",
+        description: "A s\xE9rie OpenSSL 1.1.1 atingiu o fim de vida \xFAtil (EOL) em setembro de 2023 e n\xE3o recebe corre\xE7\xF5es p\xFAblicas para novas vulnerabilidades criptogr\xE1ficas.",
+        patchedVersion: "3.0.15+ / 3.2.3+ / 3.3.2+",
+        remediation: "Migrar a biblioteca TLS do servidor para OpenSSL 3.x atualizado."
+      });
+    } else if (ver.startsWith("3.0.") && compareSemver(ver, "3.0.15") < 0) {
+      findings.push({
+        cveId: "CVE-2024-6119 / CVE-2024-5535",
+        component: "OpenSSL 3.0",
+        detectedVersion: ver,
+        severity: "HIGH",
+        cvssScore: 7.5,
+        title: "OpenSSL 3.0 Certificate Name Check & SSL_select_next_proto Buffer Overread",
+        description: "Vulnerabilidade na valida\xE7\xE3o de certificados X.509 e leitura fora dos limites em negocia\xE7\xF5es ALPN/NPN em vers\xF5es OpenSSL < 3.0.15.",
+        patchedVersion: "3.0.15+",
+        remediation: "Atualizar os pacotes libssl/openssl do sistema operacional para >= 3.0.15."
+      });
+    }
+  }
+  const iisMatch = combined.match(/Microsoft-IIS\/(\d+\.\d+)/i);
+  if (iisMatch) {
+    const ver = iisMatch[1];
+    if (compareSemver(ver, "10.0") < 0) {
+      findings.push({
+        cveId: "IIS-LEGACY-EOL",
+        component: "Microsoft IIS",
+        detectedVersion: ver,
+        severity: "HIGH",
+        cvssScore: 7.8,
+        title: "Legacy Microsoft IIS / Windows Server End-of-Life",
+        description: `O servidor exp\xF5e Microsoft-IIS/${ver}, associado ao Windows Server 2008 R2 / 2012, cujo ciclo de suporte estendido foi encerrado.`,
+        patchedVersion: "IIS 10.0+ (Windows Server 2019/2022/2025)",
+        remediation: "Migrar para Windows Server suportado e remover cabe\xE7alhos Server e X-Powered-By no web.config."
+      });
+    }
+  }
+  return findings;
+}
+var SAFE_EXPOSURE_PROBES = [
+  {
+    path: "/phpinfo.php",
+    id: "PHPINFO_EXPOSED",
+    category: "PHP_HARDENING",
+    severity: "CRITICAL",
+    title: "P\xE1gina de Diagn\xF3stico phpinfo() Exposta Publicamente",
+    remediation: "Remover imediatamente o arquivo /phpinfo.php do servidor de produ\xE7\xE3o.",
+    validateMatch: (status, _ct, body) => {
+      if (status === 200 && (body.includes("<title>phpinfo()</title>") || body.includes("PHP Version") && body.includes("Zend Extension"))) {
+        return "P\xE1gina phpinfo() ativa revelando vari\xE1veis de ambiente, extens\xF5es e caminhos internos.";
+      }
+      return null;
+    }
+  },
+  {
+    path: "/info.php",
+    id: "INFO_PHP_EXPOSED",
+    category: "PHP_HARDENING",
+    severity: "CRITICAL",
+    title: "Script /info.php Exposto com Diagn\xF3stico do Servidor",
+    remediation: "Excluir /info.php do diret\xF3rio p\xFAblico (document_root).",
+    validateMatch: (status, _ct, body) => {
+      if (status === 200 && (body.includes("<title>phpinfo()</title>") || body.includes("PHP Version") && body.includes("Configuration File (php.ini) Path"))) {
+        return "Script /info.php p\xFAblico contendo informa\xE7\xF5es completas do ambiente PHP.";
+      }
+      return null;
+    }
+  },
+  {
+    path: "/.user.ini",
+    id: "PHP_USER_INI_EXPOSED",
+    category: "PHP_HARDENING",
+    severity: "HIGH",
+    title: "Arquivo de Configura\xE7\xE3o PHP (/.user.ini) Acess\xEDvel",
+    remediation: "Bloquear acesso a arquivos .user.ini e .ini no Nginx/Apache.",
+    validateMatch: (status, ct, body) => {
+      if (status === 200 && !ct.includes("text/html") && !body.trim().startsWith("<!DOCTYPE") && !body.trim().startsWith("<html") && /(?:display_errors|memory_limit|upload_max_filesize|open_basedir|auto_prepend_file)\s*=/i.test(body)) {
+        return "Arquivo /.user.ini p\xFAblico expondo diretivas internas do interpretador PHP.";
+      }
+      return null;
+    }
+  },
+  {
+    path: "/.git/HEAD",
+    id: "GIT_REPOSITORY_EXPOSED",
+    category: "SENSITIVE_FILE",
+    severity: "CRITICAL",
+    title: "Reposit\xF3rio Git (/.git/HEAD) Exposto em Produ\xE7\xE3o",
+    remediation: "Bloquear acesso ao diret\xF3rio /.git no servidor web (location ~ /\\.git { deny all; }).",
+    validateMatch: (status, _ct, body) => {
+      if (status === 200 && /^ref:\s+refs\/heads\//m.test(body.trim())) {
+        return `Metadados do Git acess\xEDveis publicamente (${body.trim().slice(0, 50)}). Permite reconstru\xE7\xE3o do c\xF3digo-fonte.`;
+      }
+      return null;
+    }
+  },
+  {
+    path: "/.env",
+    id: "DOTENV_FILE_EXPOSED",
+    category: "SENSITIVE_FILE",
+    severity: "CRITICAL",
+    title: "Arquivo de Vari\xE1veis de Ambiente (/.env) Exposto",
+    remediation: "Mover o arquivo .env para fora da pasta p\xFAblica e bloquear arquivos ocultos (dot-files).",
+    validateMatch: (status, ct, body) => {
+      if (status === 200 && !ct.includes("text/html") && !body.trim().startsWith("<") && /(?:APP_ENV|APP_KEY|DB_HOST|DB_PASSWORD|DATABASE_URL|AWS_ACCESS_KEY_ID|JWT_SECRET|STRIPE_SECRET)\s*=/i.test(body)) {
+        return "Arquivo /.env p\xFAblico contendo chaves de configura\xE7\xE3o e credenciais de banco/API.";
+      }
+      return null;
+    }
+  },
+  {
+    path: "/actuator/health",
+    id: "SPRING_ACTUATOR_EXPOSED",
+    category: "DEBUG_INTERFACE",
+    severity: "MEDIUM",
+    title: "Endpoint Spring Boot Actuator (/actuator/health) Exposto",
+    remediation: "Restringir management.endpoints.web.exposure.include no application.properties e exigir autentica\xE7\xE3o.",
+    validateMatch: (status, ct, body) => {
+      if (status === 200 && (ct.includes("application/json") || ct.includes("spring-boot.actuator")) && /"status"\s*:\s*"(UP|DOWN|OUT_OF_SERVICE)"/i.test(body)) {
+        return "Spring Boot Actuator respondendo publicamente sem autentica\xE7\xE3o.";
+      }
+      return null;
+    }
+  },
+  {
+    path: "/openapi.json",
+    id: "OPENAPI_SCHEMA_EXPOSED",
+    category: "DEBUG_INTERFACE",
+    severity: "LOW",
+    title: "Especifica\xE7\xE3o de API (/openapi.json) P\xFAblica em Produ\xE7\xE3o",
+    remediation: "Restringir a documenta\xE7\xE3o Swagger/OpenAPI a redes internas ou exigir autentica\xE7\xE3o em produ\xE7\xE3o.",
+    validateMatch: (status, ct, body) => {
+      if (status === 200 && ct.includes("json") && /"(?:openapi|swagger)"\s*:\s*"[23]\./.test(body)) {
+        return "Esquema completo de rotas OpenAPI/Swagger exposto publicamente.";
+      }
+      return null;
+    }
+  },
+  {
+    path: "/server-status",
+    id: "APACHE_SERVER_STATUS_EXPOSED",
+    category: "DEBUG_INTERFACE",
+    severity: "HIGH",
+    title: "M\xF3dulo Apache mod_status (/server-status) P\xFAblico",
+    remediation: "Restringir o Location /server-status no Apache apenas para localhost (Require local).",
+    validateMatch: (status, _ct, body) => {
+      if (status === 200 && body.includes("Apache Server Status for") && body.includes("Server uptime:")) {
+        return "Painel Apache mod_status p\xFAblico revelando IPs de clientes e URLs internas em processamento.";
+      }
+      return null;
+    }
+  }
+];
+async function analyzePhpAndWebVulnerabilities(targetUrl) {
+  const start = Date.now();
+  const normalizedUrl = targetUrl.startsWith("http") ? targetUrl : `https://${targetUrl}`;
+  const parsedUrl = new URL(normalizedUrl);
+  const baseOrigin = parsedUrl.origin;
+  let phpDetected = false;
+  let phpVersion = null;
+  let phpIsEol = false;
+  let osHint = "UNKNOWN";
+  let serverBanner = "Hidden / Not Disclosed";
+  let poweredByBanner = "Hidden / Not Disclosed";
+  let securityTxtPresent = false;
+  const cveFindings = [];
+  const exposureFindings = [];
+  try {
+    const mainRes = await fetch(normalizedUrl, {
+      method: "GET",
+      redirect: "follow",
+      headers: {
+        "User-Agent": "ChimeraGuard-SecurityAuditor/1.5 (+https://chimera-guard.vercel.app)",
+        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
+      },
+      signal: AbortSignal.timeout(5e3)
+    });
+    const serverHdr = mainRes.headers.get("server") || "";
+    const poweredByHdr = mainRes.headers.get("x-powered-by") || "";
+    const setCookieHdr = mainRes.headers.get("set-cookie") || "";
+    const debugTokenHdr = mainRes.headers.get("x-debug-token") || mainRes.headers.get("x-debug-token-link") || "";
+    const aspnetVerHdr = mainRes.headers.get("x-aspnet-version") || "";
+    if (serverHdr) serverBanner = serverHdr;
+    if (poweredByHdr) poweredByBanner = poweredByHdr;
+    const combinedHeaders = `${serverHdr} ${poweredByHdr}`;
+    if (/(?:Win32|Win64|Windows|Microsoft-IIS)/i.test(combinedHeaders)) {
+      osHint = "WINDOWS";
+    } else if (/(?:Ubuntu|Debian|CentOS|Red Hat|Fedora|Unix|Alpine|FreeBSD)/i.test(combinedHeaders)) {
+      osHint = "LINUX_UNIX";
+    }
+    const phpVerMatch = combinedHeaders.match(/PHP\/(\d+\.\d+\.\d+)/i);
+    if (phpVerMatch) {
+      phpDetected = true;
+      phpVersion = phpVerMatch[1];
+      exposureFindings.push({
+        id: "PHP_VERSION_EXPOSED",
+        category: "PHP_HARDENING",
+        severity: "MEDIUM",
+        pathOrHeader: `X-Powered-By / Server: PHP/${phpVersion}`,
+        title: "Exposi\xE7\xE3o Expl\xEDcita de Vers\xE3o do Runtime PHP",
+        evidence: `O servidor anuncia 'PHP/${phpVersion}' nos cabe\xE7alhos HTTP, facilitando o mapeamento automatizado de CVEs.`,
+        remediation: "Definir 'expose_php = Off' no arquivo php.ini para ocultar o cabe\xE7alho X-Powered-By."
+      });
+      const phpEval = evaluatePhpVersionVulnerabilities(phpVersion);
+      phpIsEol = phpEval.isEol;
+      cveFindings.push(...phpEval.cves);
+      if (phpIsEol) {
+        exposureFindings.push({
+          id: "PHP_EOL_VERSION",
+          category: "PHP_HARDENING",
+          severity: "HIGH",
+          pathOrHeader: `PHP/${phpVersion}`,
+          title: `Vers\xE3o do PHP em Fim de Vida \xDAtil (End-of-Life: ${phpVersion})`,
+          evidence: `A vers\xE3o PHP ${phpVersion} n\xE3o recebe mais atualiza\xE7\xF5es oficiais de seguran\xE7a da PHP Foundation.`,
+          remediation: "Planejar atualiza\xE7\xE3o imediata do runtime para PHP 8.3.x ou PHP 8.4.x."
+        });
+      }
+    } else if (/PHPSESSID/i.test(setCookieHdr) || /\.php(?:\?|$)/i.test(normalizedUrl) || /\bPHP\b/i.test(combinedHeaders)) {
+      phpDetected = true;
+    }
+    if (/PHPSESSID=/i.test(setCookieHdr)) {
+      const hasHttpOnly = /HttpOnly/i.test(setCookieHdr);
+      const hasSecure = /Secure/i.test(setCookieHdr);
+      if (!hasHttpOnly || !hasSecure) {
+        exposureFindings.push({
+          id: "PHP_SESSION_COOKIE_INSECURE",
+          category: "PHP_HARDENING",
+          severity: "HIGH",
+          pathOrHeader: "Set-Cookie: PHPSESSID",
+          title: "Cookie de Sess\xE3o PHPSESSID sem Flags de Blindagem",
+          evidence: `O cookie PHPSESSID foi emitido sem ${!hasHttpOnly ? "session.cookie_httponly" : ""} ${!hasSecure ? "session.cookie_secure" : ""}.`.trim(),
+          remediation: "Configurar 'session.cookie_httponly = 1', 'session.cookie_secure = 1' e 'session.cookie_samesite = Lax' no php.ini."
+        });
+      }
+    }
+    const serverCves = evaluateServerBannerVulnerabilities(serverHdr, poweredByHdr);
+    cveFindings.push(...serverCves);
+    if (debugTokenHdr) {
+      exposureFindings.push({
+        id: "SYMFONY_LARAVEL_PROFILER_EXPOSED",
+        category: "DEBUG_INTERFACE",
+        severity: "HIGH",
+        pathOrHeader: `X-Debug-Token: ${debugTokenHdr}`,
+        title: "Profiler de Depura\xE7\xE3o (Symfony/Laravel) Ativo em Produ\xE7\xE3o",
+        evidence: `Cabe\xE7alho X-Debug-Token detectado (${debugTokenHdr}), indicando modo APP_DEBUG ativo.`,
+        remediation: "Desativar o modo debug em produ\xE7\xE3o (APP_ENV=prod / APP_DEBUG=false)."
+      });
+    }
+    if (aspnetVerHdr) {
+      exposureFindings.push({
+        id: "ASPNET_VERSION_EXPOSED",
+        category: "VERSION_DISCLOSURE",
+        severity: "LOW",
+        pathOrHeader: `X-AspNet-Version: ${aspnetVerHdr}`,
+        title: "Vazamento de Vers\xE3o do .NET Framework",
+        evidence: `O cabe\xE7alho X-AspNet-Version revela a vers\xE3o exata da stack (${aspnetVerHdr}).`,
+        remediation: 'Adicionar <httpRuntime enableVersionHeader="false" /> no arquivo web.config.'
+      });
+    }
+    if (/Next\.js/i.test(poweredByHdr)) {
+      exposureFindings.push({
+        id: "NEXTJS_POWERED_BY_EXPOSED",
+        category: "VERSION_DISCLOSURE",
+        severity: "LOW",
+        pathOrHeader: `X-Powered-By: ${poweredByHdr}`,
+        title: "Cabe\xE7alho X-Powered-By: Next.js Exposto",
+        evidence: "A aplica\xE7\xE3o anuncia explicitamente o uso de Next.js. Certifique-se de estar em vers\xE3o >= 14.2.25 ou >= 15.2.3 (mitiga\xE7\xE3o contra CVE-2025-29927) e remover o cabe\xE7alho.",
+        remediation: "Configurar 'poweredByHeader: false' no arquivo next.config.js e bloquear o cabe\xE7alho x-middleware-subrequest no proxy reverso."
+      });
+    }
+    const mainBody = await mainRes.text();
+    if (/(?:<b>Fatal error<\/b>:|<b>Warning<\/b>:|<b>Parse error<\/b>:).*? in <b>.*?(?:\.php)<\/b> on line <b>\d+<\/b>/i.test(mainBody)) {
+      phpDetected = true;
+      exposureFindings.push({
+        id: "PHP_DISPLAY_ERRORS_ENABLED",
+        category: "PHP_HARDENING",
+        severity: "HIGH",
+        pathOrHeader: normalizedUrl,
+        title: "Diretiva display_errors Ativa (Vazamento de Caminhos e Stack Trace PHP)",
+        evidence: "A resposta HTML cont\xE9m mensagens nativas de erro do PHP revelando caminhos internos do sistema de arquivos.",
+        remediation: "Definir 'display_errors = Off' e 'log_errors = On' no arquivo php.ini de produ\xE7\xE3o."
+      });
+    }
+    if (/<title>Index of \//i.test(mainBody)) {
+      exposureFindings.push({
+        id: "DIRECTORY_LISTING_ENABLED",
+        category: "DIRECTORY_LISTING",
+        severity: "HIGH",
+        pathOrHeader: normalizedUrl,
+        title: "Listagem Autom\xE1tica de Diret\xF3rios (Directory Indexing) Ativa",
+        evidence: "O servidor retorna '<title>Index of /', permitindo navegar pelos arquivos internos.",
+        remediation: "Desativar autoindex ('Options -Indexes' no Apache ou 'autoindex off;' no Nginx)."
+      });
+    }
+  } catch {
+  }
+  const probePromises = SAFE_EXPOSURE_PROBES.map(async (probe) => {
+    try {
+      const probeUrl = `${baseOrigin}${probe.path}`;
+      const res = await fetch(probeUrl, {
+        method: "GET",
+        redirect: "manual",
+        // Evita seguir redirects para páginas de login ou home (anti-falso-positivo)
+        headers: {
+          "User-Agent": "ChimeraGuard-SecurityAuditor/1.5 (+https://chimera-guard.vercel.app)"
+        },
+        signal: AbortSignal.timeout(3500)
+      });
+      if (res.status === 200) {
+        const ct = (res.headers.get("content-type") || "").toLowerCase();
+        const text = (await res.text()).slice(0, 8192);
+        const evidence = probe.validateMatch(res.status, ct, text);
+        if (evidence) {
+          if (probe.category === "PHP_HARDENING") phpDetected = true;
+          exposureFindings.push({
+            id: probe.id,
+            category: probe.category,
+            severity: probe.severity,
+            pathOrHeader: probe.path,
+            title: probe.title,
+            evidence,
+            remediation: probe.remediation
+          });
+        }
+      }
+    } catch {
+    }
+  });
+  const securityTxtPromise = (async () => {
+    try {
+      const res = await fetch(`${baseOrigin}/.well-known/security.txt`, {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          "User-Agent": "ChimeraGuard-SecurityAuditor/1.5 (+https://chimera-guard.vercel.app)"
+        },
+        signal: AbortSignal.timeout(3500)
+      });
+      if (res.status === 200) {
+        const text = await res.text();
+        if (/^Contact:/im.test(text)) {
+          securityTxtPresent = true;
+          if (!/^Expires:/im.test(text)) {
+            exposureFindings.push({
+              id: "SECURITY_TXT_MISSING_EXPIRES",
+              category: "RFC_COMPLIANCE",
+              severity: "LOW",
+              pathOrHeader: "/.well-known/security.txt",
+              title: "Arquivo security.txt sem Diretiva Obrigat\xF3ria Expires (RFC 9116)",
+              evidence: "O arquivo /.well-known/security.txt existe, mas n\xE3o cont\xE9m o campo Expires exigido pela RFC 9116.",
+              remediation: "Adicionar a diretiva 'Expires: 2027-12-31T23:59:59.000Z' no arquivo security.txt."
+            });
+          }
+          return;
+        }
+      }
+      exposureFindings.push({
+        id: "SECURITY_TXT_MISSING",
+        category: "RFC_COMPLIANCE",
+        severity: "INFO",
+        pathOrHeader: "/.well-known/security.txt",
+        title: "Pol\xEDtica de Divulga\xE7\xE3o de Vulnerabilidades (security.txt - RFC 9116) Ausente",
+        evidence: "O dom\xEDnio n\xE3o publica o arquivo padronizado /.well-known/security.txt para contato de seguran\xE7a.",
+        remediation: "Criar o arquivo /.well-known/security.txt com as diretivas Contact: e Expires: conforme a RFC 9116."
+      });
+    } catch {
+    }
+  })();
+  await Promise.all([...probePromises, securityTxtPromise]);
+  let riskScore = 0;
+  for (const cve of cveFindings) {
+    if (cve.severity === "CRITICAL") riskScore += 45;
+    else if (cve.severity === "HIGH") riskScore += 25;
+    else if (cve.severity === "MEDIUM") riskScore += 15;
+    else riskScore += 5;
+  }
+  for (const exp of exposureFindings) {
+    if (exp.severity === "CRITICAL") riskScore += 40;
+    else if (exp.severity === "HIGH") riskScore += 25;
+    else if (exp.severity === "MEDIUM") riskScore += 12;
+    else if (exp.severity === "LOW") riskScore += 5;
+  }
+  riskScore = Math.min(100, riskScore);
+  let securityGrade = "A+";
+  if (riskScore === 0) securityGrade = "A+";
+  else if (riskScore <= 10) securityGrade = "A";
+  else if (riskScore <= 25) securityGrade = "B";
+  else if (riskScore <= 50) securityGrade = "C";
+  else if (riskScore <= 75) securityGrade = "D";
+  else securityGrade = "F";
+  let overallStatus = "SECURE";
+  if (riskScore >= 60 || cveFindings.some((c) => c.severity === "CRITICAL") || exposureFindings.some((e) => e.severity === "CRITICAL")) {
+    overallStatus = "CRITICAL";
+  } else if (riskScore >= 30 || cveFindings.length > 0) {
+    overallStatus = "VULNERABLE";
+  } else if (riskScore > 0) {
+    overallStatus = "WARNING";
+  }
+  return {
+    targetUrl: normalizedUrl,
+    phpDetected,
+    phpVersion,
+    phpIsEol,
+    osHint,
+    serverBanner,
+    poweredByBanner,
+    cveFindings,
+    exposureFindings,
+    securityTxtPresent,
+    riskScore,
+    securityGrade,
+    overallStatus,
+    remediationConfig: {
+      phpIni: `; Blindagem Recomendada php.ini (ChimeraGuard 2026)
+expose_php = Off
+display_errors = Off
+display_startup_errors = Off
+log_errors = On
+allow_url_include = Off
+allow_url_fopen = Off
+cgi.force_redirect = 1
+session.cookie_httponly = 1
+session.cookie_secure = 1
+session.cookie_samesite = "Lax"
+session.use_strict_mode = 1
+disable_functions = exec,passthru,shell_exec,system,proc_open,popen,show_source,phpinfo`,
+      nginxConf: `# Blindagem Nginx contra PHP-CGI Argument Injection (CVE-2024-4577) e Arquivos Sens\xEDveis
+server_tokens off;
+location ~ /\\.(?!well-known).* {
+    deny all;
+    access_log off;
+    log_not_found off;
+}
+location ~* /(?:phpinfo|info|test)\\.php$ {
+    deny all;
+}
+if ($query_string ~* "%ad") {
+    return 403;
+}`,
+      apacheConf: `# Blindagem Apache (.htaccess / httpd.conf) contra CVE-2024-4577
+ServerTokens Prod
+ServerSignature Off
+Options -Indexes
+RewriteEngine On
+RewriteCond %{QUERY_STRING} ^%ad [NC]
+RewriteRule .* - [F,L]
+<FilesMatch "^\\.(env|git|user\\.ini)|^(phpinfo|info)\\.php$">
+    Require all denied
+</FilesMatch>`
+    },
+    durationMs: Date.now() - start
+  };
+}
+
 // src/cli-source.ts
-var CLI_VERSION = "1.5.0";
+var CLI_VERSION = "1.6.0";
 var args = process.argv.slice(2);
 var command = args[0] || "help";
 var ANSI = {
@@ -3977,6 +4582,84 @@ ${ANSI.red}\u{1F6A8} ALERTA CR\xCDTICO: Vazamento de origem confirmado!${ANSI.re
 `);
   process.exit(report.overallStatus === "CRITICAL_BYPASS" ? 1 : 0);
 }
+async function runPhpAndVulns() {
+  const targetUrl = args[1];
+  if (!targetUrl) {
+    console.error(`${ANSI.red}\u274C Erro: URL alvo n\xE3o especificada.${ANSI.reset}`);
+    console.log(`Uso: ${ANSI.bold}npx chimeraguard php <url> [--json]${ANSI.reset} ou ${ANSI.bold}npx chimeraguard vulns <url>${ANSI.reset}`);
+    process.exit(1);
+  }
+  const isJson = args.includes("--json");
+  const config = loadObsidianConfig();
+  const scope = validateTargetScope(targetUrl, config);
+  if (!scope.allowed) {
+    if (isJson) {
+      console.log(JSON.stringify({ error: scope.reason, errorCode: scope.errorCode }, null, 2));
+    } else {
+      printBanner();
+      console.error(`${ANSI.red}\u{1F6AB} [SCOPE GUARD]: Auditoria bloqueada!${ANSI.reset}`);
+      console.error(`${ANSI.yellow}Motivo: ${scope.reason}${ANSI.reset}`);
+    }
+    process.exit(1);
+  }
+  if (!isJson) {
+    printBanner();
+    console.log(`\u{1F418} Auditando vulnerabilidades cr\xEDticas de PHP (CVE-2024-4577 / EOL), CVEs de Servidor e Exposi\xE7\xF5es em ${ANSI.bold}${targetUrl}${ANSI.reset}...
+`);
+  }
+  const report = await analyzePhpAndWebVulnerabilities(targetUrl);
+  if (isJson) {
+    console.log(JSON.stringify(report, null, 2));
+    process.exit(report.overallStatus === "CRITICAL" ? 1 : 0);
+  }
+  const statusColor = report.overallStatus === "SECURE" ? ANSI.green : report.overallStatus === "WARNING" ? ANSI.yellow : ANSI.red;
+  console.log(`======================================================================`);
+  console.log(`${ANSI.bold}\u{1F4CA} AUDITORIA DE VULNERABILIDADES PHP, CVEs & EXPOSI\xC7\xC3O DE BORDA${ANSI.reset}`);
+  console.log(`======================================================================`);
+  console.log(`\u2022 Alvo Auditado:       ${report.targetUrl}`);
+  console.log(`\u2022 Runtime PHP:         ${report.phpDetected ? ANSI.yellow + "DETECTADO" + (report.phpVersion ? ` (v${report.phpVersion})` : " (Vers\xE3o Oculta)") : ANSI.green + "N\xE3o Identificado / Oculto"}${ANSI.reset}`);
+  if (report.phpVersion) {
+    console.log(`\u2022 Ciclo de Vida PHP:   ${report.phpIsEol ? ANSI.red + "END-OF-LIFE (SEM SUPORTE DE SEGURAN\xC7A)" : ANSI.green + "SUPORTADO"}${ANSI.reset}`);
+  }
+  console.log(`\u2022 Servidor Web:        ${report.serverBanner}`);
+  console.log(`\u2022 X-Powered-By:        ${report.poweredByBanner}`);
+  console.log(`\u2022 Sistema Operacional: ${report.osHint}`);
+  console.log(`\u2022 security.txt (9116): ${report.securityTxtPresent ? ANSI.green + "PRESENTE" : ANSI.yellow + "AUSENTE"}${ANSI.reset}`);
+  console.log(`\u2022 Nota de Blindagem:   ${statusColor}${ANSI.bold}GRADE ${report.securityGrade} (Risco: ${report.riskScore}/100 - ${report.overallStatus})${ANSI.reset}`);
+  console.log(`\u2022 Dura\xE7\xE3o:             ${report.durationMs}ms`);
+  console.log(`======================================================================
+`);
+  if (report.cveFindings.length > 0) {
+    console.log(`${ANSI.red}${ANSI.bold}\u{1F6A8} VULNERABILIDADES CVE IDENTIFICADAS (${report.cveFindings.length}):${ANSI.reset}`);
+    for (const cve of report.cveFindings) {
+      const sevColor = cve.severity === "CRITICAL" ? ANSI.red : ANSI.yellow;
+      console.log(`  \u2022 ${sevColor}${ANSI.bold}[${cve.severity} // CVSS ${cve.cvssScore}] ${cve.cveId}${ANSI.reset} (${cve.component} ${cve.detectedVersion})`);
+      console.log(`    T\xEDtulo:   ${cve.title}`);
+      console.log(`    Detalhe:  ${cve.description}`);
+      console.log(`    Corre\xE7\xE3o: ${ANSI.cyan}Atualizar para ${cve.patchedVersion}${ANSI.reset} \u2014 ${cve.remediation}
+`);
+    }
+  } else {
+    console.log(`${ANSI.green}\u2705 Nenhuma vers\xE3o vulner\xE1vel a CVEs cr\xEDticas (como CVE-2024-4577) foi exposta nos banners.${ANSI.reset}
+`);
+  }
+  if (report.exposureFindings.length > 0) {
+    console.log(`${ANSI.yellow}${ANSI.bold}\u{1F50D} EXPOSI\xC7\xD5ES & PONTOS DE HARDENING (${report.exposureFindings.length}):${ANSI.reset}`);
+    for (const exp of report.exposureFindings) {
+      const sevColor = exp.severity === "CRITICAL" || exp.severity === "HIGH" ? ANSI.red : exp.severity === "MEDIUM" ? ANSI.yellow : ANSI.cyan;
+      console.log(`  \u2022 ${sevColor}[${exp.severity}] ${exp.title}${ANSI.reset} (${exp.pathOrHeader})`);
+      console.log(`    Evid\xEAncia:  ${exp.evidence}`);
+      console.log(`    Remedia\xE7\xE3o: ${exp.remediation}
+`);
+    }
+  }
+  console.log(`\u{1F6E1}\uFE0F  DIRETIVAS DE BLINDAGEM RECOMENDADAS (PHP.INI):`);
+  console.log(`${ANSI.cyan}${report.remediationConfig.phpIni}${ANSI.reset}
+`);
+  console.log(`======================================================================
+`);
+  process.exit(report.overallStatus === "CRITICAL" ? 1 : 0);
+}
 function runInitConfig() {
   printBanner();
   try {
@@ -4000,6 +4683,10 @@ function printHelp() {
       --json                      Retorna o relat\xF3rio completo em formato JSON
 
   ${ANSI.bold}chimeraguard origin <url>${ANSI.reset}          Ca\xE7a vazamentos de IP real e bypass de Cloudflare/WAF (SPF, MX, Subdom\xEDnios)
+
+  ${ANSI.bold}chimeraguard php <url>${ANSI.reset}             Audita CVEs cr\xEDticas de PHP (CVE-2024-4577, 8926, EOL) e exposi\xE7\xF5es (phpinfo, .env, .git)
+
+  ${ANSI.bold}chimeraguard vulns <url>${ANSI.reset}           Scanner de CVEs de Servidores (Apache, Nginx, OpenSSL, IIS) e Exposi\xE7\xF5es de Borda
 
   ${ANSI.bold}chimeraguard ssl <url>${ANSI.reset}             Auditoria de certificados SSL/TLS, validade, expira\xE7\xE3o e nota de seguran\xE7a
   
@@ -4037,6 +4724,14 @@ switch (command) {
   case "origin-bypass":
   case "bypass":
     runOrigin();
+    break;
+  case "php":
+  case "vulns":
+  case "cve":
+  case "cves":
+  case "exposure":
+  case "misconfig":
+    runPhpAndVulns();
     break;
   case "ssl":
   case "tls":
@@ -4093,7 +4788,7 @@ switch (command) {
   case "version":
   case "-v":
   case "--version":
-    console.log("ChimeraGuard CLI v1.5.0 (formerly ObsidianSec)");
+    console.log("ChimeraGuard CLI v1.6.0 (formerly ObsidianSec)");
     break;
   default:
     printHelp();
