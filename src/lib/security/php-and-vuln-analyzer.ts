@@ -644,6 +644,19 @@ export async function analyzePhpAndWebVulnerabilities(
     const mainBody = await mainRes.text();
     if (/\/wp-content\/|\/wp-includes\/|wp-json|<meta[^>]+name=["']generator["'][^>]+content=["']WordPress/i.test(mainBody)) {
       phpDetected = true;
+      const pluginMatches = mainBody.matchAll(/\/wp-content\/plugins\/([a-zA-Z0-9_-]+)/gi);
+      const foundPlugins = Array.from(new Set(Array.from(pluginMatches, (m) => m[1])));
+      if (foundPlugins.length > 0) {
+        exposureFindings.push({
+          id: "WORDPRESS_PLUGINS_ENUMERATED",
+          category: "VERSION_DISCLOSURE",
+          severity: "LOW",
+          pathOrHeader: "/wp-content/plugins/",
+          title: `Plugins do WordPress Identificados no HTML (${foundPlugins.length} ativos)`,
+          evidence: `Plugins mapeados publicamente: ${foundPlugins.slice(0, 10).join(", ")}${foundPlugins.length > 10 ? "..." : ""}.`,
+          remediation: "Manter todos os plugins atualizados com os patches mais recentes e auditar permissões de arquivos.",
+        });
+      }
     }
     if (/(?:<b>Fatal error<\/b>:|<b>Warning<\/b>:|<b>Parse error<\/b>:).*? in <b>.*?(?:\.php)<\/b> on line <b>\d+<\/b>/i.test(mainBody)) {
       phpDetected = true;

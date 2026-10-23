@@ -448,6 +448,41 @@ disable_functions = exec,passthru,shell_exec,system,proc_open,popen,show_source,
           detail: "Remove the WordPress generator meta tag via 'remove_action(\"wp_head\", \"wp_generator\");' in functions.php.",
         });
       }
+
+      // Extract WordPress Active Plugins and Versions
+      const pluginRegex = /\/wp-content\/plugins\/([a-zA-Z0-9_-]+)(?:[^"'\s>]*\?(?:ver=([0-9.]+)))?/gi;
+      const foundPlugins = new Map<string, string | undefined>();
+      for (const match of htmlBody.matchAll(pluginRegex)) {
+        const slug = match[1];
+        const ver = match[2];
+        if (slug && !foundPlugins.has(slug)) {
+          foundPlugins.set(slug, ver);
+        }
+      }
+
+      for (const [slug, ver] of foundPlugins) {
+        detectedStack.push({
+          name: `Plugin: ${slug}`,
+          category: "WP_PLUGIN",
+          version: ver || undefined,
+          evidence: ver ? `Asset query ver=${ver}` : "Asset path in /wp-content/plugins/",
+        });
+      }
+
+      // Extract WordPress Active Theme
+      const themeMatch = htmlBody.match(/\/wp-content\/themes\/([a-zA-Z0-9_-]+)\//i);
+      if (themeMatch && themeMatch[1]) {
+        detectedStack.push({
+          name: `Theme: ${themeMatch[1]}`,
+          category: "CMS",
+          evidence: "Asset path in /wp-content/themes/",
+        });
+      }
+
+      if (foundPlugins.size > 0) {
+        adaptiveTestsExecuted.push(`WordPress Plugin Enumeration (${foundPlugins.size} Active Plugins Fingerprinted)`);
+      }
+
       remediationSnippets.push({
         serverType: "WordPress (functions.php / .htaccess)",
         snippet: `# =========================================================
