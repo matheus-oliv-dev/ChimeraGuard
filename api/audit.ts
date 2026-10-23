@@ -387,11 +387,25 @@ disable_functions = exec,passthru,shell_exec,system,proc_open,popen,show_source,
     const burpInspection = runBurpHeaderAudit(headers, rawSetCookies);
 
     // ====================================================================
-    // PHP & SERVER CVE / EXPOSURE INSPECTOR (CVE-2024-4577, EOL, BANNERS)
+    // ADAPTIVE MULTI-VECTOR TECH FINGERPRINTING & VULNERABILITY BATTERY
     // ====================================================================
+    let htmlBody = "";
+    try {
+      htmlBody = (await res.text()).slice(0, 150000);
+    } catch {
+      htmlBody = "";
+    }
+
     const combinedBanner = `${serverHeader} ${xPoweredBy}`;
     const cveFindings: Array<{ cveId: string; component: string; version: string; severity: string; title: string; remediation: string }> = [];
     const exposureFindings: Array<{ title: string; severity: string; detail: string }> = [];
+    const detectedStack: Array<{ name: string; category: string; version?: string; evidence: string }> = [];
+    const adaptiveTestsExecuted: string[] = [
+      "HTTP Edge Security Headers & Browser Isolation Matrix",
+      "Passive Session Cookie & CORS Policy Inspector (Burp Engine)",
+      "MITRE ATT&CK Kill Chain Correlation (BloodHound Engine)",
+      "Server & Runtime Banner CVE Matcher (2024–2026 NVD Database)",
+    ];
 
     const compareVer = (v1: string, v2: string) => {
       const a = v1.replace(/[^0-9.]/g, "").split(".").map((n) => parseInt(n, 10) || 0);
@@ -406,7 +420,81 @@ disable_functions = exec,passthru,shell_exec,system,proc_open,popen,show_source,
     let phpDetected = false;
     let phpVersion: string | null = null;
     let phpIsEol = false;
+    let wordpressDetected = false;
+    let wordpressVersion: string | null = null;
 
+    // 1. Detect WordPress (via DOM / Headers / Links)
+    const wpGenMatch = htmlBody.match(/<meta[^>]+name=["']generator["'][^>]+content=["']WordPress\s*([\d.]+)?["']/i);
+    const hasWpPaths = /\/wp-(?:content|includes|json)\//i.test(htmlBody) || (headers.get("link") || "").includes("wp-json");
+    if (wpGenMatch || hasWpPaths) {
+      wordpressDetected = true;
+      phpDetected = true; // WordPress runs on PHP
+      wordpressVersion = wpGenMatch?.[1] || null;
+      detectedStack.push({
+        name: "WordPress CMS",
+        category: "CMS",
+        version: wordpressVersion || undefined,
+        evidence: wpGenMatch ? `Meta generator (WordPress ${wordpressVersion || ""})` : "/wp-content/ & /wp-includes/ assets",
+      });
+      if (wordpressVersion) {
+        exposureFindings.push({
+          title: `WordPress Version Disclosed in Meta Generator (${wordpressVersion})`,
+          severity: "LOW",
+          detail: "Remove the WordPress generator meta tag via 'remove_action(\"wp_head\", \"wp_generator\");' in functions.php.",
+        });
+      }
+      remediationSnippets.push({
+        serverType: "WordPress (functions.php / .htaccess)",
+        snippet: `# =========================================================
+# CHIMERAGUARD DEFENSE PATCH // WORDPRESS CMS HARDENING
+# =========================================================
+# 1. Block XML-RPC Brute Force & Pingback Amplification (.htaccess)
+<Files xmlrpc.php>
+  Require all denied
+</Files>
+
+# 2. Disable REST API User Enumeration & Hide WP Version (functions.php)
+remove_action('wp_head', 'wp_generator');
+add_filter('rest_endpoints', function($endpoints) {
+  if (isset($endpoints['/wp/v2/users'])) unset($endpoints['/wp/v2/users']);
+  if (isset($endpoints['/wp/v2/users/(?P<id>[\\d]+)'])) unset($endpoints['/wp/v2/users/(?P<id>[\\d]+)']);
+  return $endpoints;
+});`,
+      });
+    }
+
+    // 2. Detect Other Frameworks & Libraries from HTML/Headers
+    if (/laravel_session|XSRF-TOKEN/i.test(rawSetCookies.join(" "))) {
+      phpDetected = true;
+      detectedStack.push({ name: "Laravel Framework", category: "FRAMEWORK", evidence: "Session cookie signature" });
+    }
+    if (/Drupal\.settings|\/sites\/default\/files/i.test(htmlBody) || headers.get("x-drupal-cache")) {
+      phpDetected = true;
+      detectedStack.push({ name: "Drupal CMS", category: "CMS", evidence: "Drupal DOM/Header signature" });
+    }
+    if (/__NEXT_DATA__|\/_next\/static/i.test(htmlBody) || /Next\.js/i.test(xPoweredBy)) {
+      detectedStack.push({ name: "Next.js", category: "FRAMEWORK", evidence: "_next/static or X-Powered-By" });
+    }
+    if (/data-reactroot|react-root|__NEXT_DATA__/i.test(htmlBody)) {
+      detectedStack.push({ name: "React", category: "FRONTEND", evidence: "React DOM markers" });
+    }
+    if (/__VUE__|data-v-[a-f0-9]{6}/i.test(htmlBody)) {
+      detectedStack.push({ name: "Vue.js", category: "FRONTEND", evidence: "Vue DOM markers" });
+    }
+    if (/ng-version=|ng-app/i.test(htmlBody)) {
+      detectedStack.push({ name: "Angular", category: "FRONTEND", evidence: "Angular DOM attributes" });
+    }
+    if (headers.get("cf-ray") || sLower.includes("cloudflare")) {
+      detectedStack.push({ name: "Cloudflare WAF/CDN", category: "WAF / CDN", evidence: "cf-ray / server header" });
+    }
+    if (headers.get("x-azure-ref")) {
+      detectedStack.push({ name: "Azure Front Door WAF", category: "WAF / CDN", evidence: "x-azure-ref header" });
+    }
+    if (headers.get("x-vercel-id") || sLower.includes("vercel")) {
+      detectedStack.push({ name: "Vercel Edge Network", category: "CDN", evidence: "x-vercel-id header" });
+    }
+
+    // 3. Detect PHP Version & CVEs
     const phpMatch = combinedBanner.match(/PHP\/(\d+\.\d+\.\d+)/i);
     if (phpMatch) {
       phpDetected = true;
@@ -416,6 +504,13 @@ disable_functions = exec,passthru,shell_exec,system,proc_open,popen,show_source,
       const min = parts[1] ?? 0;
       const branch = `${maj}.${min}`;
       phpIsEol = maj < 8 || (maj === 8 && min <= 1);
+
+      detectedStack.push({
+        name: "PHP Runtime",
+        category: "LANGUAGE",
+        version: phpVersion,
+        evidence: `X-Powered-By / Server: PHP/${phpVersion}`,
+      });
 
       exposureFindings.push({
         title: `PHP Version Disclosed (PHP/${phpVersion})`,
@@ -464,32 +559,52 @@ disable_functions = exec,passthru,shell_exec,system,proc_open,popen,show_source,
           remediation: "Upgrade PHP to >= 8.3.12 / >= 8.2.24 and disable php-cgi in public directories.",
         });
       }
-    } else if (rawSetCookies.some((c) => /PHPSESSID/i.test(c)) || /\.php(?:\?|$)/i.test(targetUrl)) {
+    } else if (phpDetected || rawSetCookies.some((c) => /PHPSESSID/i.test(c)) || /\.php(?:\?|$)/i.test(targetUrl)) {
       phpDetected = true;
+      detectedStack.push({
+        name: "PHP Runtime",
+        category: "LANGUAGE",
+        evidence: wordpressDetected ? "Inferred via WordPress CMS" : "Session cookie / route signature (Version Hidden)",
+      });
     }
 
+    // 4. Web Server & OS Fingerprinting + CVEs
     const apacheMatch = combinedBanner.match(/Apache\/(\d+\.\d+\.\d+)/i);
-    if (apacheMatch && compareVer(apacheMatch[1], "2.4.62") < 0) {
-      cveFindings.push({
-        cveId: "CVE-2024-38476 / CVE-2024-40725",
-        component: "Apache HTTP Server",
-        version: apacheMatch[1],
-        severity: "CRITICAL (CVSS 9.1)",
-        title: "Apache mod_rewrite SSRF & Source Code Disclosure",
-        remediation: "Upgrade Apache to >= 2.4.62 and set 'ServerTokens Prod' in httpd.conf.",
-      });
+    if (apacheMatch) {
+      detectedStack.push({ name: "Apache HTTP Server", category: "WEB SERVER", version: apacheMatch[1], evidence: serverHeader });
+      if (compareVer(apacheMatch[1], "2.4.62") < 0) {
+        cveFindings.push({
+          cveId: "CVE-2024-38476 / CVE-2024-40725",
+          component: "Apache HTTP Server",
+          version: apacheMatch[1],
+          severity: "CRITICAL (CVSS 9.1)",
+          title: "Apache mod_rewrite SSRF & Source Code Disclosure",
+          remediation: "Upgrade Apache to >= 2.4.62 and set 'ServerTokens Prod' in httpd.conf.",
+        });
+      }
     }
 
     const nginxMatch = combinedBanner.match(/nginx\/(\d+\.\d+\.\d+)/i);
-    if (nginxMatch && compareVer(nginxMatch[1], "1.26.2") < 0) {
-      cveFindings.push({
-        cveId: "CVE-2024-7347 / CVE-2024-32760",
-        component: "Nginx Web Server",
-        version: nginxMatch[1],
-        severity: "MEDIUM (CVSS 6.5)",
-        title: "Nginx HTTP/3 QUIC & MP4 Module Memory Safety",
-        remediation: "Upgrade Nginx to >= 1.26.2 and set 'server_tokens off;' in nginx.conf.",
-      });
+    if (nginxMatch) {
+      detectedStack.push({ name: "Nginx Web Server", category: "WEB SERVER", version: nginxMatch[1], evidence: serverHeader });
+      if (compareVer(nginxMatch[1], "1.26.2") < 0) {
+        cveFindings.push({
+          cveId: "CVE-2024-7347 / CVE-2024-32760",
+          component: "Nginx Web Server",
+          version: nginxMatch[1],
+          severity: "MEDIUM (CVSS 6.5)",
+          title: "Nginx HTTP/3 QUIC & MP4 Module Memory Safety",
+          remediation: "Upgrade Nginx to >= 1.26.2 and set 'server_tokens off;' in nginx.conf.",
+        });
+      }
+    }
+
+    if (/Ubuntu/i.test(combinedBanner)) {
+      detectedStack.push({ name: "Ubuntu Linux", category: "OS", evidence: "Server header OS token" });
+    } else if (/Debian/i.test(combinedBanner)) {
+      detectedStack.push({ name: "Debian Linux", category: "OS", evidence: "Server header OS token" });
+    } else if (/Win64|Win32|Microsoft-IIS/i.test(combinedBanner)) {
+      detectedStack.push({ name: "Windows Server", category: "OS", evidence: "Server header OS token" });
     }
 
     const debugToken = headers.get("x-debug-token") || headers.get("x-debug-token-link");
@@ -501,12 +616,137 @@ disable_functions = exec,passthru,shell_exec,system,proc_open,popen,show_source,
       });
     }
 
+    // 5. Execute Adaptive Probes Based on Detected Stack (Parallel & Fast)
+    const parsedOrigin = new URL(targetUrl).origin;
+    const adaptiveProbeTasks: Promise<void>[] = [];
+
+    // Universal Exposure Probes (.env & .git/HEAD)
+    adaptiveTestsExecuted.push("Universal Sensitive File Probe (/.env, /.git/HEAD)");
+    adaptiveProbeTasks.push(
+      (async () => {
+        try {
+          const gitRes = await fetch(`${parsedOrigin}/.git/HEAD`, {
+            method: "GET",
+            redirect: "manual",
+            signal: AbortSignal.timeout(2200),
+          });
+          if (gitRes.status === 200) {
+            const txt = (await gitRes.text()).slice(0, 200);
+            if (/^ref:\s+refs\/heads\//m.test(txt.trim())) {
+              exposureFindings.push({
+                title: "Exposed Git Repository (/.git/HEAD)",
+                severity: "CRITICAL",
+                detail: "Public /.git/HEAD allows attackers to reconstruct source code. Deny access to /.git in web server config.",
+              });
+            }
+          }
+        } catch {}
+      })(),
+      (async () => {
+        try {
+          const envRes = await fetch(`${parsedOrigin}/.env`, {
+            method: "GET",
+            redirect: "manual",
+            signal: AbortSignal.timeout(2200),
+          });
+          if (envRes.status === 200) {
+            const ct = (envRes.headers.get("content-type") || "").toLowerCase();
+            const txt = (await envRes.text()).slice(0, 2048);
+            if (!ct.includes("text/html") && !txt.trim().startsWith("<") && /(?:APP_KEY|DB_PASSWORD|DATABASE_URL|AWS_ACCESS_KEY_ID)\s*=/i.test(txt)) {
+              exposureFindings.push({
+                title: "Exposed Environment File (/.env)",
+                severity: "CRITICAL",
+                detail: "Public /.env file leaks production secrets and database credentials.",
+              });
+            }
+          }
+        } catch {}
+      })()
+    );
+
+    // WordPress-Specific Adaptive Probes
+    if (wordpressDetected) {
+      adaptiveTestsExecuted.push("WordPress Adaptive Battery: REST API User Enumeration (/wp-json/wp/v2/users) & XML-RPC (/xmlrpc.php)");
+      adaptiveProbeTasks.push(
+        (async () => {
+          try {
+            const wpUsersRes = await fetch(`${parsedOrigin}/wp-json/wp/v2/users`, {
+              method: "GET",
+              redirect: "manual",
+              signal: AbortSignal.timeout(2500),
+            });
+            if (wpUsersRes.status === 200) {
+              const txt = (await wpUsersRes.text()).slice(0, 4096);
+              if (txt.trim().startsWith("[") && /"slug"\s*:\s*"[^"]+"/.test(txt)) {
+                exposureFindings.push({
+                  title: "WordPress REST API User Enumeration Exposed (/wp-json/wp/v2/users)",
+                  severity: "HIGH",
+                  detail: "Unauthenticated visitors can list valid WordPress administrator/author usernames via /wp-json/wp/v2/users.",
+                });
+              }
+            }
+          } catch {}
+        })(),
+        (async () => {
+          try {
+            const xmlrpcRes = await fetch(`${parsedOrigin}/xmlrpc.php`, {
+              method: "GET",
+              redirect: "manual",
+              signal: AbortSignal.timeout(2500),
+            });
+            if (xmlrpcRes.status === 405 || xmlrpcRes.status === 200) {
+              const txt = (await xmlrpcRes.text()).slice(0, 500);
+              if (/XML-RPC server accepts POST requests only/i.test(txt)) {
+                exposureFindings.push({
+                  title: "WordPress XML-RPC Interface Active (/xmlrpc.php)",
+                  severity: "MEDIUM",
+                  detail: "xmlrpc.php is enabled and can be abused for brute-force credential stuffing (system.multicall) and pingback SSRF.",
+                });
+              }
+            }
+          } catch {}
+        })()
+      );
+    }
+
+    // PHP-Specific Adaptive Probes
+    if (phpDetected) {
+      adaptiveTestsExecuted.push("PHP Adaptive Battery: Diagnostic Exposure (/phpinfo.php) & Error Leak Check");
+      adaptiveProbeTasks.push(
+        (async () => {
+          try {
+            const infoRes = await fetch(`${parsedOrigin}/phpinfo.php`, {
+              method: "GET",
+              redirect: "manual",
+              signal: AbortSignal.timeout(2200),
+            });
+            if (infoRes.status === 200) {
+              const txt = (await infoRes.text()).slice(0, 4096);
+              if (txt.includes("<title>phpinfo()</title>") || (txt.includes("PHP Version") && txt.includes("Zend Extension"))) {
+                exposureFindings.push({
+                  title: "Public phpinfo() Diagnostic Page Exposed (/phpinfo.php)",
+                  severity: "CRITICAL",
+                  detail: "Remove /phpinfo.php immediately; it exposes environment variables and server paths.",
+                });
+              }
+            }
+          } catch {}
+        })()
+      );
+    }
+
+    await Promise.allSettled(adaptiveProbeTasks);
+
     const vulnInspection = {
       phpDetected,
       phpVersion,
       phpIsEol,
+      wordpressDetected,
+      wordpressVersion,
       serverBanner: serverHeader || "Hidden (Hardened)",
       poweredByBanner: xPoweredBy || "Hidden (Hardened)",
+      detectedStack,
+      adaptiveTestsExecuted,
       cves: cveFindings,
       exposures: exposureFindings,
     };

@@ -3624,6 +3624,20 @@ var SAFE_EXPOSURE_PROBES = [
       }
       return null;
     }
+  },
+  {
+    path: "/wp-json/wp/v2/users",
+    id: "WORDPRESS_REST_USERS_EXPOSED",
+    category: "PHP_HARDENING",
+    severity: "MEDIUM",
+    title: "WordPress REST API (/wp-json/wp/v2/users) Expondo Lista de Usu\xE1rios",
+    remediation: "Restringir o endpoint /wp-json/wp/v2/users via filtro rest_endpoints no functions.php ou regra de WAF.",
+    validateMatch: (status, ct, body) => {
+      if (status === 200 && ct.includes("json") && body.includes('"slug":') && body.includes('"id":')) {
+        return "Endpoint REST API /wp-json/wp/v2/users p\xFAblico permitindo enumera\xE7\xE3o de logins de administradores/autores.";
+      }
+      return null;
+    }
   }
 ];
 async function analyzePhpAndWebVulnerabilities(targetUrl) {
@@ -3744,6 +3758,9 @@ async function analyzePhpAndWebVulnerabilities(targetUrl) {
       });
     }
     const mainBody = await mainRes.text();
+    if (/\/wp-content\/|\/wp-includes\/|wp-json|<meta[^>]+name=["']generator["'][^>]+content=["']WordPress/i.test(mainBody)) {
+      phpDetected = true;
+    }
     if (/(?:<b>Fatal error<\/b>:|<b>Warning<\/b>:|<b>Parse error<\/b>:).*? in <b>.*?(?:\.php)<\/b> on line <b>\d+<\/b>/i.test(mainBody)) {
       phpDetected = true;
       exposureFindings.push({
