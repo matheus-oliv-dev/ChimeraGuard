@@ -171,11 +171,11 @@
             <span class="font-boxy font-black tracking-wider text-xl sm:text-2xl text-white uppercase leading-none">
               CHIMERA<span class="text-neutral-400">GUARD</span>
             </span>
-            <span class="text-[10px] font-mono font-bold tracking-wider text-black bg-white px-1.5 py-0.5 uppercase hidden sm:inline-block">
-              v1.5.0
+            <span class="text-[10px] font-mono font-bold tracking-wider text-black bg-green-400 px-1.5 py-0.5 uppercase hidden sm:inline-block">
+              v1.6.0
             </span>
           </div>
-          <span class="text-[10px] text-neutral-400 font-mono tracking-wider uppercase hidden sm:block">MULTI-VECTOR DEVSECOPS // FORMERLY CHIMERAGUARD</span>
+          <span class="text-[10px] text-neutral-400 font-mono tracking-wider uppercase hidden sm:block">MULTI-VECTOR DEVSECOPS &amp; DEFENSE ARSENAL</span>
         </div>
       </a>
 
@@ -187,6 +187,14 @@
           class="px-3.5 py-1.5 bg-white text-black font-black text-xs uppercase tracking-wider transition shadow-sm whitespace-nowrap"
         >
           <i class="fa-solid fa-radar mr-1"></i> SCANNER
+        </button>
+        <button 
+          onclick="switchView('phpcve')" 
+          id="navPhpcveBtn"
+          class="px-3.5 py-1.5 text-neutral-400 hover:text-white font-bold text-xs uppercase tracking-wider transition whitespace-nowrap flex items-center gap-1"
+        >
+          <i class="fa-brands fa-php mr-1 text-purple-400 text-sm"></i> PHP &amp; CVEs
+          <span class="px-1 py-0.2 bg-red-600 text-white text-[9px] font-mono font-black uppercase">NEW</span>
         </button>
         <button 
           onclick="switchView('playground')" 
@@ -275,7 +283,7 @@
         </h1>
 
         <p class="text-neutral-400 text-sm sm:text-base max-w-2xl mx-auto font-sans font-normal leading-relaxed">
-          Network header inspection, CORS matrix analysis, session cookie hygiene, and automated defense patches ready to merge.
+          Network header inspection, critical PHP &amp; Server CVE detection (<strong class="text-white">CVE-2024-4577</strong>), CORS matrix analysis, session cookie hygiene, and automated defense patches ready to merge.
         </p>
       </div>
 
@@ -649,6 +657,143 @@
           </div>
         </div>
 
+      </div>
+    </div>
+
+    <!-- ============================================================= -->
+    <!-- VIEW 1B: PHP, CVE-2024-4577 & SERVER EXPOSURE AUDITOR         -->
+    <!-- ============================================================= -->
+    <div id="phpcveSection" class="hidden space-y-10">
+      <div class="text-center space-y-4 max-w-4xl mx-auto">
+        <div class="inline-flex items-center gap-3 px-4 py-1.5 bg-monoblack-900 border-2 border-purple-500/80 text-white text-xs font-mono font-bold uppercase tracking-widest">
+          <i class="fa-brands fa-php text-purple-400 text-base"></i>
+          <span>CRITICAL PHP &amp; SERVER CVE AUDITOR // CVE-2024-4577 ENGINE</span>
+        </div>
+        <h2 class="text-4xl sm:text-6xl font-boxy font-black text-white uppercase leading-none">
+          PHP &amp; SERVER CVE SCANNER
+        </h2>
+        <p class="text-neutral-300 text-base sm:text-lg max-w-3xl mx-auto font-sans">
+          Detect critical PHP-CGI Argument Injection (<strong class="text-white">CVE-2024-4577 · CVSS 9.8</strong>), <strong class="text-white">CVE-2024-8926</strong>, End-of-Life PHP runtimes, Apache/Nginx/OpenSSL CVEs, and exposed configuration headers.
+        </p>
+      </div>
+
+      <!-- LIVE PHP & CVE URL SCANNER -->
+      <div class="brutal-card corner-mark p-8 space-y-6 border-2 border-purple-500/60">
+        <div class="flex items-center justify-between border-b border-monoblack-border pb-3 text-xs font-mono">
+          <div class="flex items-center gap-2 font-bold">
+            <span class="w-2.5 h-2.5 bg-purple-400 inline-block"></span>
+            <span class="text-white uppercase tracking-wider">01. LIVE ENDPOINT PHP &amp; CVE PROBE</span>
+          </div>
+          <span class="text-purple-400 font-bold uppercase">[PASSIVE BANNER &amp; RUNTIME INSPECTOR]</span>
+        </div>
+
+        <form onsubmit="handlePhpCveAuditSubmit(event)" class="space-y-4">
+          <div class="flex flex-col sm:flex-row gap-4">
+            <input
+              type="text"
+              id="phpCveTargetUrl"
+              placeholder="Ex: https://your-domain.com"
+              required
+              class="flex-1 bg-monoblack-950 border-2 border-monoblack-border text-white font-mono text-sm px-5 py-3.5 focus:border-white focus:outline-none uppercase"
+            >
+            <button
+              type="submit"
+              id="phpCveSubmitBtn"
+              class="bg-white text-black hover:bg-neutral-200 font-black font-boxy uppercase tracking-wider px-8 py-3.5 text-sm transition flex items-center justify-center gap-2"
+            >
+              <i class="fa-solid fa-bug-slash"></i>
+              <span>SCAN PHP &amp; CVES</span>
+            </button>
+          </div>
+        </form>
+
+        <div id="phpCveLoader" class="hidden text-center py-6 font-mono text-xs text-purple-400 uppercase tracking-wider">
+          <i class="fa-solid fa-spinner fa-spin text-xl text-white mb-2"></i>
+          <div>Inspecting PHP runtime banners, Server headers &amp; CVE signatures...</div>
+        </div>
+
+        <div id="phpCveLiveResult" class="hidden space-y-6 pt-4 border-t-2 border-monoblack-border">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- INTERACTIVE VERSION CVE SIMULATOR -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div class="brutal-card p-8 space-y-6">
+          <div class="flex items-center justify-between border-b-2 border-monoblack-border pb-4">
+            <div class="flex items-center gap-3 font-boxy font-black text-base text-white uppercase tracking-wider">
+              <i class="fa-solid fa-microchip text-purple-400"></i>
+              <span>02. INTERACTIVE PHP &amp; SERVER CVE SIMULATOR</span>
+            </div>
+            <span class="text-xs font-mono text-neutral-400">[NVD_2026_DB]</span>
+          </div>
+
+          <div class="space-y-4 font-mono text-xs">
+            <p class="text-neutral-300 font-sans">
+              Test any PHP or Web Server version string to verify whether it is affected by <strong class="text-white">CVE-2024-4577</strong>, <strong class="text-white">CVE-2024-8926</strong>, or End-of-Life (EOL) status:
+            </p>
+
+            <div class="flex flex-wrap gap-2">
+              <button type="button" onclick="simulatePhpVersion('8.3.6')" class="px-3 py-1.5 bg-red-950 border border-red-500 text-red-300 hover:bg-red-900 font-bold uppercase">PHP 8.3.6 (CVE-2024-4577)</button>
+              <button type="button" onclick="simulatePhpVersion('8.2.15')" class="px-3 py-1.5 bg-red-950 border border-red-500 text-red-300 hover:bg-red-900 font-bold uppercase">PHP 8.2.15 (Vulnerable)</button>
+              <button type="button" onclick="simulatePhpVersion('7.4.33')" class="px-3 py-1.5 bg-yellow-950 border border-yellow-500 text-yellow-300 hover:bg-yellow-900 font-bold uppercase">PHP 7.4.33 (EOL + Critical)</button>
+              <button type="button" onclick="simulatePhpVersion('8.4.2')" class="px-3 py-1.5 bg-green-950 border border-green-500 text-green-300 hover:bg-green-900 font-bold uppercase">PHP 8.4.2 (Patched &amp; Safe)</button>
+            </div>
+
+            <div class="space-y-2 pt-2">
+              <label class="text-neutral-400 uppercase font-bold">Enter PHP Version to Audit:</label>
+              <input
+                type="text"
+                id="phpSimInput"
+                value="8.3.6"
+                oninput="evaluatePhpSimulator()"
+                class="w-full bg-monoblack-950 border-2 border-monoblack-border text-white px-4 py-3 font-mono text-sm focus:border-white focus:outline-none"
+              >
+            </div>
+
+            <div id="phpSimOutput" class="space-y-3 pt-2">
+              <!-- Populated via evaluatePhpSimulator() -->
+            </div>
+          </div>
+        </div>
+
+        <!-- READY TO COPY PHP.INI & NGINX CVE-2024-4577 PATCH -->
+        <div class="brutal-card p-8 space-y-6">
+          <div class="flex items-center justify-between border-b-2 border-monoblack-border pb-4">
+            <div class="flex items-center gap-3 font-boxy font-black text-base text-white uppercase tracking-wider">
+              <i class="fa-solid fa-shield-halved text-green-400"></i>
+              <span>03. CVE-2024-4577 &amp; PHP.INI HARDENING PATCH</span>
+            </div>
+            <button onclick="copyPhpHardeningPatch()" class="px-3 py-1 bg-white text-black font-bold text-xs font-mono uppercase hover:bg-neutral-200">
+              COPY PATCH
+            </button>
+          </div>
+
+          <p class="text-xs text-neutral-300 font-sans leading-relaxed">
+            Apply these production directives in <code class="text-white">php.ini</code> and your Nginx/Apache edge configuration to block CGI Argument Injection (<code class="text-red-400">%AD</code> soft-hyphen bypass) and hide PHP version banners:
+          </p>
+
+          <div class="mono-code-box p-4 font-mono text-xs text-green-400 overflow-x-auto">
+<pre id="phpHardeningPatchBox">; === 1. php.ini Production Hardening ===
+expose_php = Off
+display_errors = Off
+log_errors = On
+allow_url_include = Off
+allow_url_fopen = Off
+cgi.force_redirect = 1
+session.cookie_httponly = 1
+session.cookie_secure = 1
+disable_functions = exec,passthru,shell_exec,system,proc_open,popen,phpinfo
+
+# === 2. Nginx Edge Rule (Block CVE-2024-4577 %AD Injection) ===
+if ($query_string ~* "%ad") {
+    return 403;
+}
+location ~* /(?:phpinfo|info|test)\.php$ {
+    deny all;
+}</pre>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -1256,6 +1401,7 @@ jobs:
     function switchView(viewName) {
       const views = {
         scanner: { sec: document.getElementById('scannerSection'), btn: document.getElementById('navScannerBtn') },
+        phpcve: { sec: document.getElementById('phpcveSection'), btn: document.getElementById('navPhpcveBtn') },
         playground: { sec: document.getElementById('playgroundSection'), btn: document.getElementById('navPlaygroundBtn') },
         dns: { sec: document.getElementById('dnsSection'), btn: document.getElementById('navDnsBtn') },
         cli: { sec: document.getElementById('cliSection'), btn: document.getElementById('navCliBtn') },
@@ -1266,16 +1412,201 @@ jobs:
         if (!item.sec || !item.btn) continue;
         if (key === viewName) {
           item.sec.classList.remove('hidden');
-          item.btn.className = "px-4 py-2 bg-white text-black font-black text-xs uppercase tracking-wider transition shadow-sm";
+          item.btn.className = "px-3.5 py-1.5 bg-white text-black font-black text-xs uppercase tracking-wider transition shadow-sm whitespace-nowrap flex items-center gap-1";
         } else {
           item.sec.classList.add('hidden');
-          item.btn.className = "px-4 py-2 text-neutral-400 hover:text-white font-bold text-xs uppercase tracking-wider transition";
+          item.btn.className = "px-3.5 py-1.5 text-neutral-400 hover:text-white font-bold text-xs uppercase tracking-wider transition whitespace-nowrap flex items-center gap-1";
         }
       }
 
       if (viewName === 'wiki' && rawKnowledgeItems.length === 0) loadKnowledgeBase();
       if (viewName === 'playground') buildCspPreview();
+      if (viewName === 'phpcve') evaluatePhpSimulator();
       if (viewName === 'cli') selectCliCommand('audit');
+    }
+
+    function simulatePhpVersion(ver) {
+      const input = document.getElementById('phpSimInput');
+      if (input) {
+        input.value = ver;
+        evaluatePhpSimulator();
+      }
+    }
+
+    function evaluatePhpSimulator() {
+      const ver = (document.getElementById('phpSimInput')?.value || '').trim();
+      const out = document.getElementById('phpSimOutput');
+      if (!out) return;
+      if (!ver) {
+        out.innerHTML = '';
+        return;
+      }
+
+      const parts = ver.replace(/[^0-9.]/g, '').split('.').map(n => parseInt(n, 10) || 0);
+      const maj = parts[0] || 0;
+      const min = parts[1] || 0;
+      const pat = parts[2] || 0;
+      const isEol = maj < 8 || (maj === 8 && min <= 1);
+
+      const cves = [];
+      if (
+        maj < 8 ||
+        (maj === 8 && min === 0) ||
+        (maj === 8 && min === 1 && pat < 29) ||
+        (maj === 8 && min === 2 && pat < 20) ||
+        (maj === 8 && min === 3 && pat < 8)
+      ) {
+        cves.push({
+          id: 'CVE-2024-4577',
+          sev: 'CRITICAL (CVSS 9.8)',
+          title: 'PHP-CGI Argument Injection (Best-Fit Character Encoding Bypass)',
+          fix: 'Upgrade to PHP >= 8.3.14 or >= 8.2.26 and migrate from PHP-CGI to PHP-FPM.'
+        });
+      }
+
+      if (
+        maj < 8 ||
+        (maj === 8 && min === 0) ||
+        (maj === 8 && min === 1 && pat < 30) ||
+        (maj === 8 && min === 2 && pat < 24) ||
+        (maj === 8 && min === 3 && pat < 12)
+      ) {
+        cves.push({
+          id: 'CVE-2024-8926 / CVE-2024-8927',
+          sev: 'CRITICAL (CVSS 9.8)',
+          title: 'PHP-CGI Protection Bypass & cgi.force_redirect Environment Collision',
+          fix: 'Upgrade to PHP >= 8.3.12 / >= 8.2.24 and disable php-cgi in public directories.'
+        });
+      }
+
+      if (
+        maj < 8 ||
+        (maj === 8 && min === 0) ||
+        (maj === 8 && min === 1 && pat < 28) ||
+        (maj === 8 && min === 2 && pat < 18) ||
+        (maj === 8 && min === 3 && pat < 5)
+      ) {
+        cves.push({
+          id: 'CVE-2024-2756',
+          sev: 'HIGH (CVSS 7.5)',
+          title: '__Host- and __Secure- Cookie Prefix Integrity Bypass',
+          fix: 'Upgrade PHP and validate raw cookie names in HTTP headers.'
+        });
+      }
+
+      let html = `
+        <div class="p-4 bg-monoblack-950 border ${cves.length > 0 || isEol ? 'border-red-500' : 'border-green-500'} space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-white uppercase">AUDITED VERSION: PHP ${escapeHtml(ver)}</span>
+            <span class="px-2 py-0.5 font-black text-[10px] uppercase ${cves.length > 0 ? 'bg-red-600 text-white' : isEol ? 'bg-yellow-500 text-black' : 'bg-green-500 text-black'}">
+              ${cves.length > 0 ? cves.length + ' CRITICAL CVES' : isEol ? 'END-OF-LIFE (EOL)' : 'PATCHED & SECURE'}
+            </span>
+          </div>
+          <div class="text-[11px] text-neutral-300">
+            Lifecycle Status: <strong class="${isEol ? 'text-red-400' : 'text-green-400'}">${isEol ? 'END-OF-LIFE (Unsupported)' : 'Active Security Support'}</strong>
+          </div>
+      `;
+
+      if (cves.length > 0) {
+        html += cves.map(c => `
+          <div class="border-l-2 border-red-500 bg-red-950/30 pl-3 py-1.5 mt-2">
+            <div class="flex items-center justify-between">
+              <span class="text-red-400 font-bold">${c.id}</span>
+              <span class="text-[10px] text-red-300 font-bold">${c.sev}</span>
+            </div>
+            <div class="text-white font-bold">${c.title}</div>
+            <div class="text-[11px] text-neutral-300 mt-0.5">🔧 ${c.fix}</div>
+          </div>
+        `).join('');
+      } else {
+        html += `<div class="text-green-400 text-xs font-bold mt-1">✓ PHP ${escapeHtml(ver)} is patched against CVE-2024-4577, CVE-2024-8926, and CVE-2024-2756!</div>`;
+      }
+      html += `</div>`;
+      out.innerHTML = html;
+    }
+
+    function copyPhpHardeningPatch() {
+      const box = document.getElementById('phpHardeningPatchBox');
+      if (!box) return;
+      navigator.clipboard.writeText(box.innerText);
+      alert("PHP & Nginx CVE-2024-4577 hardening patch copied to clipboard!");
+    }
+
+    async function handlePhpCveAuditSubmit(e) {
+      e.preventDefault();
+      let url = document.getElementById('phpCveTargetUrl').value.trim();
+      if (!url) return;
+      if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+      }
+
+      const loader = document.getElementById('phpCveLoader');
+      const resBox = document.getElementById('phpCveLiveResult');
+      const btn = document.getElementById('phpCveSubmitBtn');
+
+      loader.classList.remove('hidden');
+      resBox.classList.add('hidden');
+      btn.disabled = true;
+
+      try {
+        const res = await fetch('/api/audit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, acceptedTerms: true })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Audit failed');
+
+        const v = data.vulnInspection || {};
+        const cves = v.cves || [];
+        const exps = v.exposures || [];
+
+        resBox.innerHTML = `
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4 font-mono text-xs">
+            <div class="p-4 bg-monoblack-950 border border-monoblack-border">
+              <div class="text-neutral-400 text-[10px] uppercase">TARGET AUDITED</div>
+              <div class="text-white font-bold text-sm truncate mt-1">${escapeHtml(data.url)}</div>
+            </div>
+            <div class="p-4 bg-monoblack-950 border border-monoblack-border">
+              <div class="text-neutral-400 text-[10px] uppercase">PHP RUNTIME &amp; BANNERS</div>
+              <div class="font-bold text-sm mt-1 ${v.phpDetected ? 'text-yellow-400' : 'text-green-400'}">
+                ${v.phpDetected ? (v.phpVersion ? 'PHP/' + escapeHtml(v.phpVersion) : 'PHP Detected (Hidden Version)') : 'Hidden / Not Exposed'}
+              </div>
+              <div class="text-[11px] text-neutral-400 mt-0.5">Server: ${escapeHtml(v.serverBanner || 'Hidden')}</div>
+            </div>
+            <div class="p-4 bg-monoblack-950 border ${cves.length > 0 ? 'border-red-500' : 'border-green-500'}">
+              <div class="text-neutral-400 text-[10px] uppercase">CVE-2024-4577 &amp; SERVER CVES</div>
+              <div class="font-black text-base mt-1 ${cves.length > 0 ? 'text-red-400' : 'text-green-400'}">
+                ${cves.length > 0 ? cves.length + ' CRITICAL CVES FOUND' : '0 BANNER CVES EXPOSED'}
+              </div>
+            </div>
+          </div>
+          ${cves.length > 0 ? `
+            <div class="space-y-2 font-mono text-xs">
+              ${cves.map(c => `
+                <div class="p-4 border-l-4 border-red-500 bg-red-950/30">
+                  <div class="flex justify-between font-bold text-red-400">
+                    <span>${escapeHtml(c.cveId)} — ${escapeHtml(c.title)}</span>
+                    <span>${escapeHtml(c.severity)}</span>
+                  </div>
+                  <div class="text-neutral-300 mt-1">🔧 Remediation: ${escapeHtml(c.remediation)}</div>
+                </div>
+              `).join('')}
+            </div>
+          ` : `
+            <div class="p-4 bg-green-950/20 border-l-4 border-green-500 text-green-400 font-mono text-xs">
+              ✓ Target does not expose vulnerable PHP/Apache/Nginx version banners or CVE-2024-4577 indicators in HTTP responses.
+            </div>
+          `}
+        `;
+        resBox.classList.remove('hidden');
+      } catch (err) {
+        resBox.innerHTML = `<div class="p-4 bg-red-950/30 border border-red-500 text-red-300 font-mono text-xs">Error: ${escapeHtml(err.message)}</div>`;
+        resBox.classList.remove('hidden');
+      } finally {
+        loader.classList.add('hidden');
+        btn.disabled = false;
+      }
     }
 
     // =================================================================
