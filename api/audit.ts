@@ -357,9 +357,9 @@ Set Dynamic Header:
 }`,
       },
       {
-        serverType: "PHP (php.ini // CVE-2024-4577)",
+        serverType: "PHP (php.ini // CVE-2026-115560 & Hardening)",
         snippet: `; =========================================================
-; CHIMERAGUARD DEFENSE PATCH // PHP HARDENING & CVE-2024-4577
+; CHIMERAGUARD DEFENSE PATCH // PHP HARDENING & CVE-2026-115560
 ; =========================================================
 expose_php = Off
 display_errors = Off
@@ -368,6 +368,11 @@ log_errors = On
 allow_url_include = Off
 allow_url_fopen = Off
 cgi.force_redirect = 1
+
+; --- MITIGAÇÃO CRÍTICA CVE-2026-115560 & PHP2SHELL ---
+session.upload_progress.enabled = Off
+session.upload_progress.cleanup = On
+
 session.cookie_httponly = 1
 session.cookie_secure = 1
 session.cookie_samesite = "Lax"
@@ -712,6 +717,12 @@ add_filter('rest_endpoints', function($endpoints) {
     // PHP-Specific Adaptive Probes
     if (phpDetected) {
       adaptiveTestsExecuted.push("PHP Adaptive Battery: Diagnostic Exposure (/phpinfo.php) & Error Leak Check");
+      exposureFindings.push({
+        title: "PHP Session Zero-Day Advisory (CVE-2026-115560 / PHP2Shell)",
+        severity: "HIGH",
+        detail:
+          "Zero-day session advisory: verify that 'session.upload_progress.enabled = Off' is set in php.ini to prevent unauthenticated session initialization and RCE (CVE-2026-115560).",
+      });
       adaptiveProbeTasks.push(
         (async () => {
           try {

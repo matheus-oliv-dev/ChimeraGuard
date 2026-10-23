@@ -3722,6 +3722,17 @@ async function analyzePhpAndWebVulnerabilities(targetUrl) {
         });
       }
     }
+    if (phpDetected) {
+      exposureFindings.push({
+        id: "PHP_SESSION_UPLOAD_PROGRESS_ZERO_DAY",
+        category: "PHP_HARDENING",
+        severity: "HIGH",
+        pathOrHeader: "php.ini: session.upload_progress.enabled",
+        title: "Mitiga\xE7\xE3o Cr\xEDtica: Desativar session.upload_progress (CVE-2026-115560 & PHP2Shell)",
+        evidence: "O PHP mant\xE9m 'session.upload_progress.enabled = On' por padr\xE3o, permitindo inicializa\xE7\xE3o de arquivos tempor\xE1rios de sess\xE3o no disco e vetor de RCE em CVE-2026-115560.",
+        remediation: "Definir 'session.upload_progress.enabled = Off' e 'session.upload_progress.cleanup = On' no php.ini para neutralizar o vetor at\xE9 a publica\xE7\xE3o de patch oficial."
+      });
+    }
     const serverCves = evaluateServerBannerVulnerabilities(serverHdr, poweredByHdr);
     cveFindings.push(...serverCves);
     if (debugTokenHdr) {
